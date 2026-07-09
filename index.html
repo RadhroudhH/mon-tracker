@@ -508,7 +508,7 @@
             .solde-card.techno .value {
                 color: var(--violet);
             }
-            .solde-card.total .value {
+            .solde-card.epargne .value {
                 color: var(--accent);
             }
             .solde-card .icon {
@@ -517,53 +517,6 @@
                 right: 12px;
                 font-size: 18px;
                 opacity: 0.2;
-            }
-
-            .stat-grid {
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 10px;
-                margin-bottom: 22px;
-            }
-            .stat-card {
-                background: var(--surface);
-                border: 1px solid var(--border);
-                border-radius: 16px;
-                padding: 18px 16px;
-                transition: all 0.25s var(--ease);
-            }
-            .stat-card:active {
-                transform: scale(0.98);
-            }
-            .stat-card .label {
-                font-size: 10px;
-                letter-spacing: 0.25em;
-                text-transform: uppercase;
-                color: var(--text-4);
-                margin-bottom: 8px;
-            }
-            .stat-card .value {
-                font-family: var(--font-display);
-                font-weight: 300;
-                font-size: 24px;
-                letter-spacing: -0.02em;
-                font-variant-numeric: tabular-nums;
-            }
-            .stat-card .value .unit {
-                font-size: 12px;
-                color: var(--text-3);
-                margin-left: 3px;
-            }
-            .stat-card.epargne .value {
-                color: var(--accent);
-            }
-            .stat-card.carte .value {
-                color: var(--violet);
-            }
-            .stat-card .foot {
-                font-size: 11px;
-                color: var(--text-3);
-                margin-top: 4px;
             }
 
             .section-title {
@@ -2046,12 +1999,12 @@
                 else if (currentPage === "settings") renderSettings();
             }
 
-            // ============ DASHBOARD ============
+            // ============ DASHBOARD (réorganisé) ============
             function renderDashboard() {
                 const now = new Date();
                 const monthName = MONTH_NAMES[now.getMonth()];
 
-                // ---- Soldes (incluent les offsets) ----
+                // Soldes (incluent les offsets)
                 const totalRevenus = state.revenus.reduce((s, r) => s + r.amount, 0);
                 const totalDepenses = state.depenses.reduce((s, d) => s + d.amount, 0);
                 const soldeCash = totalRevenus - totalDepenses;
@@ -2067,7 +2020,7 @@
                 const soldeTechno = soldeCarte("techno");
                 const soldeTotal = soldeCash + soldeD17 + soldeTechno;
 
-                // ---- Statistiques (excluent les offsets) ----
+                // Statistiques (excluent les offsets)
                 const depensesSansOffset = state.depenses.filter((d) => d.category !== "Offset");
                 const revenusSansOffset = state.revenus.filter((r) => r.source !== "offset" && r.source !== "Offset");
 
@@ -2087,6 +2040,7 @@
 
                 const p = document.getElementById("page-dashboard");
                 p.innerHTML = `
+                    <!-- Carte principale : solde total -->
                     <div class="hero-card">
                         <div class="hero-label">Solde total</div>
                         <div class="hero-value"><span id="hero-total">0,00</span><span class="unit">DT</span></div>
@@ -2095,6 +2049,7 @@
                         </div>
                     </div>
 
+                    <!-- Grille 2×2 : Cash, D17, Techno, Épargne -->
                     <div class="soldes-grid">
                         <div class="solde-card cash">
                             <div class="icon">💰</div>
@@ -2114,31 +2069,22 @@
                             <div class="value"><span id="solde-techno">0,00</span><span class="unit">DT</span></div>
                             <div class="sub">Zitouna</div>
                         </div>
-                        <div class="solde-card total">
-                            <div class="icon">⭐</div>
-                            <div class="label">Total</div>
-                            <div class="value"><span id="solde-total">0,00</span><span class="unit">DT</span></div>
-                            <div class="sub">Tout confondu</div>
+                        <div class="solde-card epargne">
+                            <div class="icon">✦</div>
+                            <div class="label">Épargne</div>
+                            <div class="value"><span id="solde-epargne">0,00</span><span class="unit">DT</span></div>
+                            <div class="sub">Cumulée</div>
                         </div>
                     </div>
 
-                    <div class="stat-grid">
-                        <div class="stat-card epargne">
-                            <div class="label">Épargne cumulée</div>
-                            <div class="value"><span id="stat-epargne">0,00</span><span class="unit">DT</span></div>
-                        </div>
-                        <div class="stat-card carte">
-                            <div class="label">Solde carte (moyenne)</div>
-                            <div class="value"><span id="stat-carte">0,00</span><span class="unit">DT</span></div>
-                        </div>
-                    </div>
-
+                    <!-- Répartition -->
                     <div class="section-title">Répartition (toutes les dépenses)</div>
                     <div class="repart">
                         <div class="repart-bar" id="repart-bar"></div>
                         <div class="repart-list" id="repart-list"></div>
                     </div>
 
+                    <!-- Objectif -->
                     <div class="section-title">Objectif six mois</div>
                     <div class="goal-card">
                         <div class="goal-header">
@@ -2154,18 +2100,17 @@
                         </div>
                     </div>
 
+                    <!-- Insights -->
                     <div class="section-title">Ce que je remarque</div>
                     <div id="insights"></div>
                 `;
 
+                // Animations
                 animateNumber(document.getElementById("hero-total"), 0, soldeTotal);
                 animateNumber(document.getElementById("solde-cash"), 0, soldeCash);
                 animateNumber(document.getElementById("solde-d17"), 0, soldeD17);
                 animateNumber(document.getElementById("solde-techno"), 0, soldeTechno);
-                animateNumber(document.getElementById("solde-total"), 0, soldeTotal);
-                animateNumber(document.getElementById("stat-epargne"), 0, epargneTotal);
-                const moyenneCarte = (soldeD17 + soldeTechno) / 2;
-                animateNumber(document.getElementById("stat-carte"), 0, moyenneCarte);
+                animateNumber(document.getElementById("solde-epargne"), 0, epargneTotal);
                 animateNumber(document.getElementById("goal-val"), 0, epargneTotal);
 
                 const goalPct = Math.min(1, epargneTotal / 1200);
@@ -2174,6 +2119,7 @@
                 bar.style.transform = `scaleX(${goalPct})`;
                 document.getElementById("goal-remain").textContent = `${(goalPct * 100).toFixed(0)}% · reste ${fmt(Math.max(0, 1200 - epargneTotal))} DT`;
 
+                // Répartition
                 if (catEntries.length) {
                     const barEl = document.getElementById("repart-bar");
                     const listEl = document.getElementById("repart-list");
@@ -2204,6 +2150,7 @@
                     document.getElementById("repart-bar").innerHTML = '<div style="color:var(--text-4);padding:10px 0;text-align:center;font-size:12px;">Aucune dépense enregistrée</div>';
                 }
 
+                // Insights
                 const ins = document.getElementById("insights");
                 ins.innerHTML = "";
                 const insights = [];
@@ -2797,7 +2744,7 @@
                     if (orig) orig.call(this, e);
                 };
             }
-            console.log("[init] Offset corrigé : affecte les soldes mais pas les statistiques.");
+            console.log("[init] Aperçu réorganisé : Cash, D17, Techno, Épargne.");
         </script>
     </body>
 </html>
