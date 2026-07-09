@@ -31,7 +31,7 @@
                 --success: #6db89b;
                 --violet: #9b87be;
                 --amber: #d9954a;
-                --offset-color: #666;
+                --offset-color: #888;
                 --font-display: "Fraunces", Georgia, serif;
                 --font-body: "Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
                 --ease: cubic-bezier(0.22, 1, 0.36, 1);
@@ -254,7 +254,6 @@
                 opacity: 1;
             }
 
-            /* Header */
             .header {
                 padding: 20px 22px 8px;
                 display: flex;
@@ -334,7 +333,6 @@
                 }
             }
 
-            /* Tabs */
             .tabs {
                 display: flex;
                 padding: 0 18px;
@@ -382,7 +380,6 @@
                 }
             }
 
-            /* Pages */
             .page-container {
                 position: relative;
                 overflow: hidden;
@@ -409,7 +406,6 @@
             }
 
             /* ============ DASHBOARD ============ */
-            /* Hero card */
             .hero-card {
                 background: linear-gradient(160deg, var(--surface) 0%, var(--bg-2) 100%);
                 border: 1px solid var(--border);
@@ -460,7 +456,6 @@
                 margin: 0 8px;
             }
 
-            /* Soldes grid */
             .soldes-grid {
                 display: grid;
                 grid-template-columns: 1fr 1fr;
@@ -524,7 +519,6 @@
                 opacity: 0.2;
             }
 
-            /* Stat grid (épargne, etc.) */
             .stat-grid {
                 display: grid;
                 grid-template-columns: 1fr 1fr;
@@ -572,7 +566,6 @@
                 margin-top: 4px;
             }
 
-            /* Repartition */
             .section-title {
                 font-family: var(--font-display);
                 font-style: italic;
@@ -641,7 +634,6 @@
                 margin-left: 6px;
             }
 
-            /* Goal */
             .goal-card {
                 background: linear-gradient(160deg, var(--surface) 0%, var(--bg-2) 100%);
                 border: 1px solid var(--border);
@@ -710,7 +702,6 @@
                 color: var(--text-3);
             }
 
-            /* Insights */
             .insight {
                 padding: 14px 16px;
                 margin-bottom: 8px;
@@ -1344,7 +1335,6 @@
                 }
             }
 
-            /* ============ PIN LOCK FIXED ============ */
             .pin-fixed-note {
                 font-size: 10px;
                 color: var(--text-4);
@@ -1354,7 +1344,6 @@
                 user-select: none;
             }
 
-            /* ============ SWIPE INDICATOR ============ */
             .swipe-indicator {
                 display: none;
                 position: fixed;
@@ -1441,24 +1430,14 @@
                 <button class="tab" data-page="carte">Carte</button>
             </div>
 
-            <!-- Swipe arrows (visible on touch devices) -->
             <div class="swipe-indicator left" id="swipe-left">‹</div>
             <div class="swipe-indicator right" id="swipe-right">›</div>
 
             <div class="page-container" id="page-container">
-                <!-- Dashboard -->
                 <div class="page active" id="page-dashboard"></div>
-
-                <!-- Depenses -->
                 <div class="page" id="page-depenses"></div>
-
-                <!-- Revenus -->
                 <div class="page" id="page-revenus"></div>
-
-                <!-- Carte -->
                 <div class="page" id="page-carte"></div>
-
-                <!-- Settings -->
                 <div class="page" id="page-settings"></div>
             </div>
 
@@ -1561,31 +1540,22 @@
             // ============ FIXED PIN ============
             const FIXED_PIN = "14112411";
 
-            // ============ VIBRATION HELPER ============
+            // ============ VIBRATION ============
             function vibrate(ms) {
                 ms = ms || 35;
                 try {
                     if (navigator.vibrate) {
-                        if (ms >= 50) {
-                            navigator.vibrate([ms, 20, ms]);
-                        } else {
-                            navigator.vibrate(ms);
-                        }
+                        if (ms >= 50) navigator.vibrate([ms, 20, ms]);
+                        else navigator.vibrate(ms);
                     }
                 } catch (_) {}
             }
-
-            // Global click listener for vibration on all buttons
             document.addEventListener("click", function (e) {
                 const el = e.target.closest("button, .tab, .filter-chip, .list-item, .card-btn, .cat-btn, .setting-row, .fab, .icon-btn, .btn");
-                if (el) {
-                    if (!el.dataset.vibrated) {
-                        vibrate(20);
-                        el.dataset.vibrated = "1";
-                        setTimeout(() => {
-                            delete el.dataset.vibrated;
-                        }, 100);
-                    }
+                if (el && !el.dataset.vibrated) {
+                    vibrate(20);
+                    el.dataset.vibrated = "1";
+                    setTimeout(() => delete el.dataset.vibrated, 100);
                 }
             });
 
@@ -1695,7 +1665,7 @@
                 { name: "Transport", glyph: "⇢", color: "#C4A85C" },
                 { name: "Autre", glyph: "◇", color: "#9B87BE" },
                 { name: "Epargne", glyph: "✦", color: "#6DB89B" },
-                { name: "Offset", glyph: "⟳", color: "#666" },
+                { name: "Offset", glyph: "⟳", color: "#888" },
             ];
             const MONTH_NAMES = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
             const TAB_ORDER = ["dashboard", "depenses", "revenus", "carte"];
@@ -1778,18 +1748,16 @@
                 initSwipe();
             }
 
-            // ============ SWIPE GESTURE ============
+            // ============ SWIPE ============
             let swipeLeftEl = document.getElementById("swipe-left");
             let swipeRightEl = document.getElementById("swipe-right");
 
             function initSwipe() {
                 const container = document.getElementById("page-container");
                 if (!container) return;
-
                 let touchStartX = 0,
-                    touchStartY = 0;
-                let isSwiping = false;
-
+                    touchStartY = 0,
+                    isSwiping = false;
                 container.addEventListener(
                     "touchstart",
                     function (e) {
@@ -1801,7 +1769,6 @@
                     },
                     { passive: true },
                 );
-
                 container.addEventListener(
                     "touchmove",
                     function (e) {
@@ -1809,22 +1776,16 @@
                         const touch = e.touches[0];
                         const dx = touch.clientX - touchStartX;
                         const dy = touch.clientY - touchStartY;
-
                         if (Math.abs(dx) > 20 && Math.abs(dx) > Math.abs(dy) * 1.2) {
                             isSwiping = true;
                             e.preventDefault();
-                            if (dx < 0 && canSwipeRight()) {
-                                showSwipeArrow("right");
-                            } else if (dx > 0 && canSwipeLeft()) {
-                                showSwipeArrow("left");
-                            } else {
-                                hideSwipeArrows();
-                            }
+                            if (dx < 0 && canSwipeRight()) showSwipeArrow("right");
+                            else if (dx > 0 && canSwipeLeft()) showSwipeArrow("left");
+                            else hideSwipeArrows();
                         }
                     },
                     { passive: false },
                 );
-
                 container.addEventListener(
                     "touchend",
                     function (e) {
@@ -1832,9 +1793,7 @@
                         const touch = e.changedTouches[0];
                         const dx = touch.clientX - touchStartX;
                         const dy = touch.clientY - touchStartY;
-
                         hideSwipeArrows();
-
                         if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.2) {
                             if (dx < 0 && canSwipeRight()) {
                                 vibrate(30);
@@ -1878,12 +1837,10 @@
             function navigateTab(delta) {
                 const idx = TAB_ORDER.indexOf(currentPage);
                 const newIdx = Math.max(0, Math.min(TAB_ORDER.length - 1, idx + delta));
-                if (newIdx !== idx) {
-                    showPage(TAB_ORDER[newIdx]);
-                }
+                if (newIdx !== idx) showPage(TAB_ORDER[newIdx]);
             }
 
-            // ============ SUPABASE SYNC ============
+            // ============ SUPABASE ============
             function setSync(status, text) {
                 const el = document.getElementById("sync-indicator");
                 el.className = "sync-indicator " + status;
@@ -1892,27 +1849,19 @@
 
             async function bootstrap() {
                 setSync("syncing", "Sync…");
-
                 try {
                     const counts = await fetchAll();
-                    console.log("[bootstrap] Counts from Supabase:", counts);
-
                     const empty = counts.dep === 0 && counts.rev === 0 && counts.carte === 0;
                     const migrated = localStorage.getItem(MIGRATED_KEY);
-
                     if (empty && !migrated) {
-                        console.log("[bootstrap] Base vide, migration en cours...");
                         document.getElementById("loading-text").textContent = "Migration en cours…";
                         await migrateInitial();
                         localStorage.setItem(MIGRATED_KEY, "1");
-                        const c2 = await fetchAll();
-                        console.log("[bootstrap] Apres migration:", c2);
-                        toast("Migration : " + c2.dep + " dep, " + c2.rev + " rev, " + c2.carte + " carte");
+                        await fetchAll();
+                        toast("Migration terminée");
                     }
-
                     setSync("", "À jour");
                 } catch (e) {
-                    console.error("[bootstrap] Erreur:", e);
                     setSync("error", "Hors ligne");
                     toast("Erreur Supabase : " + (e.message || "inconnue"), true);
                 }
@@ -1920,24 +1869,10 @@
 
             async function fetchAll() {
                 const [depR, revR, ctR, txR] = await Promise.all([sb.from("depenses").select("*"), sb.from("revenus").select("*"), sb.from("carte").select("*"), sb.from("taux").select("*")]);
-
-                if (depR.error) {
-                    console.error("Depenses:", depR.error);
-                    throw depR.error;
-                }
-                if (revR.error) {
-                    console.error("Revenus:", revR.error);
-                    throw revR.error;
-                }
-                if (ctR.error) {
-                    console.error("Carte:", ctR.error);
-                    throw ctR.error;
-                }
-                if (txR.error) {
-                    console.error("Taux:", txR.error);
-                    throw txR.error;
-                }
-
+                if (depR.error) throw depR.error;
+                if (revR.error) throw revR.error;
+                if (ctR.error) throw ctR.error;
+                if (txR.error) throw txR.error;
                 state.depenses = (depR.data || []).map((d) => ({ ...d, amount: parseFloat(d.amount) }));
                 state.revenus = (revR.data || []).map((r) => ({ ...r, amount: parseFloat(r.amount) }));
                 state.carte = (ctR.data || []).map((c) => ({
@@ -1948,63 +1883,36 @@
                     total_dt: parseFloat(c.total_dt || 0),
                     card: c.card || "techno",
                 }));
-
                 if (txR.data && txR.data[0]) {
                     state.taux = {
                         usd_vente: parseFloat(txR.data[0].usd_vente),
                         eur_vente: parseFloat(txR.data[0].eur_vente),
                     };
                 }
-
                 return { dep: state.depenses.length, rev: state.revenus.length, carte: state.carte.length };
             }
 
             async function migrateInitial() {
-                console.log("[migrate] Debut - dep:", INITIAL_DATA.depenses.length, "rev:", INITIAL_DATA.revenus.length, "carte:", INITIAL_DATA.carte.length);
-
-                let okDep = 0,
-                    failDep = 0;
-                for (let i = 0; i < INITIAL_DATA.depenses.length; i++) {
-                    const d = INITIAL_DATA.depenses[i];
-                    const entry = {
-                        id: "d" + i,
+                for (let d of INITIAL_DATA.depenses) {
+                    await sb.from("depenses").insert({
+                        id: "d" + Date.now() + Math.random(),
                         date: d.date || null,
                         description: d.description || "",
                         category: d.category || "Autre",
                         amount: d.amount,
-                    };
-                    const { error } = await sb.from("depenses").insert(entry);
-                    if (error) {
-                        console.error("[migrate] Dep", i, error, entry);
-                        failDep++;
-                    } else okDep++;
+                    });
                 }
-                console.log("[migrate] Depenses:", okDep, "ok,", failDep, "fail");
-
-                let okRev = 0,
-                    failRev = 0;
-                for (let i = 0; i < INITIAL_DATA.revenus.length; i++) {
-                    const r = INITIAL_DATA.revenus[i];
-                    const entry = {
-                        id: "r" + i,
+                for (let r of INITIAL_DATA.revenus) {
+                    await sb.from("revenus").insert({
+                        id: "r" + Date.now() + Math.random(),
                         date: r.date || null,
                         source: r.source || "—",
                         amount: r.amount,
-                    };
-                    const { error } = await sb.from("revenus").insert(entry);
-                    if (error) {
-                        console.error("[migrate] Rev", i, error, entry);
-                        failRev++;
-                    } else okRev++;
+                    });
                 }
-                console.log("[migrate] Revenus:", okRev, "ok,", failRev, "fail");
-
-                let okCarte = 0,
-                    failCarte = 0;
-                for (let i = 0; i < INITIAL_DATA.carte.length; i++) {
-                    const c = INITIAL_DATA.carte[i];
-                    const entry = {
-                        id: "c" + i,
+                for (let c of INITIAL_DATA.carte) {
+                    await sb.from("carte").insert({
+                        id: "c" + Date.now() + Math.random(),
                         date: c.date || null,
                         description: c.description || "",
                         type: c.type || "Achat",
@@ -2014,56 +1922,9 @@
                         rate: c.rate || 0,
                         total_dt: c.total_dt || 0,
                         card: "techno",
-                    };
-                    const { error } = await sb.from("carte").insert(entry);
-                    if (error) {
-                        console.error("[migrate] Carte", i, error, entry);
-                        failCarte++;
-                    } else okCarte++;
+                    });
                 }
-                console.log("[migrate] Carte:", okCarte, "ok,", failCarte, "fail");
-
-                const { error: errTaux } = await sb.from("taux").upsert({
-                    id: 1,
-                    usd_vente: INITIAL_DATA.taux.usd_vente,
-                    eur_vente: INITIAL_DATA.taux.eur_vente,
-                });
-                if (errTaux) console.error("[migrate] Taux:", errTaux);
-                else console.log("[migrate] Taux OK");
-
-                console.log("[migrate] Termine");
-            }
-
-            async function reMigrate() {
-                if (!confirm("Cela va EFFACER toutes les données actuelles sur Supabase et les remplacer par celles du fichier Excel original. Continuer ?")) return;
-                if (!confirm("Vraiment sûr ? Toutes les modifications faites depuis la première ouverture seront perdues.")) return;
-
-                document.getElementById("loading").style.display = "flex";
-                document.getElementById("loading-text").textContent = "Nettoyage…";
-                setSync("syncing", "Reset…");
-
-                try {
-                    await sb.from("depenses").delete().neq("id", "");
-                    await sb.from("revenus").delete().neq("id", "");
-                    await sb.from("carte").delete().neq("id", "");
-                    await sb.from("taux").delete().neq("id", 0);
-
-                    document.getElementById("loading-text").textContent = "Réinjection…";
-                    await migrateInitial();
-
-                    localStorage.setItem(MIGRATED_KEY, "1");
-                    const c = await fetchAll();
-
-                    document.getElementById("loading").style.display = "none";
-                    setSync("", "À jour");
-                    render();
-                    toast("Migration OK : " + c.dep + " dep, " + c.rev + " rev, " + c.carte + " carte");
-                } catch (e) {
-                    document.getElementById("loading").style.display = "none";
-                    setSync("error", "Erreur");
-                    toast("Erreur : " + (e.message || "inconnue"), true);
-                    console.error(e);
-                }
+                await sb.from("taux").upsert({ id: 1, usd_vente: INITIAL_DATA.taux.usd_vente, eur_vente: INITIAL_DATA.taux.eur_vente });
             }
 
             async function pushEntry(kind, entry) {
@@ -2074,7 +1935,6 @@
                     if (error) throw error;
                     setSync("", "À jour");
                 } catch (e) {
-                    console.error(e);
                     setSync("error", "Erreur");
                     toast("Erreur de sync", true);
                 }
@@ -2088,7 +1948,6 @@
                     if (error) throw error;
                     setSync("", "À jour");
                 } catch (e) {
-                    console.error(e);
                     setSync("error", "Erreur");
                     toast("Erreur de suppression", true);
                 }
@@ -2143,7 +2002,6 @@
                     .map((d) => ({ date: d, items: g[d] }));
             }
 
-            // ============ ANIMATED COUNTER ============
             function animateNumber(el, from, to, duration = 700) {
                 const start = performance.now();
 
@@ -2193,16 +2051,11 @@
                 const now = new Date();
                 const monthName = MONTH_NAMES[now.getMonth()];
 
-                // --- Exclure les entrées Offset ---
-                const depensesSansOffset = state.depenses.filter((d) => d.category !== "Offset");
-                const revenusSansOffset = state.revenus.filter((r) => r.source !== "offset" && r.source !== "Offset");
-
-                // --- Calculs des soldes (sans offset) ---
-                const totalRevenus = revenusSansOffset.reduce((s, r) => s + r.amount, 0);
-                const totalDepenses = depensesSansOffset.reduce((s, d) => s + d.amount, 0);
+                // ---- Soldes (incluent les offsets) ----
+                const totalRevenus = state.revenus.reduce((s, r) => s + r.amount, 0);
+                const totalDepenses = state.depenses.reduce((s, d) => s + d.amount, 0);
                 const soldeCash = totalRevenus - totalDepenses;
 
-                // Soldes des cartes (inchangés, les cartes n'ont pas de notion d'offset)
                 const carteOps = state.carte;
                 const soldeCarte = (card) => {
                     const ops = carteOps.filter((c) => c.card === card);
@@ -2214,16 +2067,17 @@
                 const soldeTechno = soldeCarte("techno");
                 const soldeTotal = soldeCash + soldeD17 + soldeTechno;
 
-                // Dépenses du mois (hors épargne et hors offset)
+                // ---- Statistiques (excluent les offsets) ----
+                const depensesSansOffset = state.depenses.filter((d) => d.category !== "Offset");
+                const revenusSansOffset = state.revenus.filter((r) => r.source !== "offset" && r.source !== "Offset");
+
                 const thisMonth = depensesSansOffset.filter((d) => isThisMonth(d.date) && d.category !== "Epargne");
                 const monthTotal = thisMonth.reduce((s, d) => s + d.amount, 0);
                 const daysActive = new Set(thisMonth.map((d) => d.date)).size;
                 const avgDay = daysActive ? monthTotal / daysActive : 0;
 
-                // Épargne cumulée (hors offset)
                 const epargneTotal = depensesSansOffset.filter((d) => d.category === "Epargne").reduce((s, d) => s + d.amount, 0);
 
-                // Répartition (hors offset)
                 const allSpend = depensesSansOffset.filter((d) => d.category !== "Epargne");
                 const catTotals = {};
                 allSpend.forEach((d) => {
@@ -2233,7 +2087,6 @@
 
                 const p = document.getElementById("page-dashboard");
                 p.innerHTML = `
-                    <!-- Hero card : solde total -->
                     <div class="hero-card">
                         <div class="hero-label">Solde total</div>
                         <div class="hero-value"><span id="hero-total">0,00</span><span class="unit">DT</span></div>
@@ -2242,7 +2095,6 @@
                         </div>
                     </div>
 
-                    <!-- Soldes détaillés -->
                     <div class="soldes-grid">
                         <div class="solde-card cash">
                             <div class="icon">💰</div>
@@ -2270,7 +2122,6 @@
                         </div>
                     </div>
 
-                    <!-- Anciennes stats (épargne, etc.) -->
                     <div class="stat-grid">
                         <div class="stat-card epargne">
                             <div class="label">Épargne cumulée</div>
@@ -2307,7 +2158,6 @@
                     <div id="insights"></div>
                 `;
 
-                // Animate tous les soldes
                 animateNumber(document.getElementById("hero-total"), 0, soldeTotal);
                 animateNumber(document.getElementById("solde-cash"), 0, soldeCash);
                 animateNumber(document.getElementById("solde-d17"), 0, soldeD17);
@@ -2324,7 +2174,6 @@
                 bar.style.transform = `scaleX(${goalPct})`;
                 document.getElementById("goal-remain").textContent = `${(goalPct * 100).toFixed(0)}% · reste ${fmt(Math.max(0, 1200 - epargneTotal))} DT`;
 
-                // Repartition
                 if (catEntries.length) {
                     const barEl = document.getElementById("repart-bar");
                     const listEl = document.getElementById("repart-list");
@@ -2355,30 +2204,18 @@
                     document.getElementById("repart-bar").innerHTML = '<div style="color:var(--text-4);padding:10px 0;text-align:center;font-size:12px;">Aucune dépense enregistrée</div>';
                 }
 
-                // Insights
                 const ins = document.getElementById("insights");
                 ins.innerHTML = "";
                 const insights = [];
-                if (avgDay > 20) {
-                    insights.push({ type: "bad", text: `Tu dépenses ${fmt(avgDay)} DT/jour en moyenne. C'est plus qu'un loyer par semaine.` });
-                } else if (avgDay > 15) {
-                    insights.push({ type: "warn", text: `Autour de ${fmt(avgDay)} DT/jour. Deux ou trois commandes en moins par semaine feraient une vraie différence.` });
-                } else if (avgDay > 0 && avgDay <= 10) {
-                    insights.push({ type: "good", text: `Moins de 10 DT/jour de moyenne. Bien tenu.` });
-                }
+                if (avgDay > 20) insights.push({ type: "bad", text: `Tu dépenses ${fmt(avgDay)} DT/jour en moyenne. C'est plus qu'un loyer par semaine.` });
+                else if (avgDay > 15) insights.push({ type: "warn", text: `Autour de ${fmt(avgDay)} DT/jour. Deux ou trois commandes en moins par semaine feraient une vraie différence.` });
+                else if (avgDay > 0 && avgDay <= 10) insights.push({ type: "good", text: `Moins de 10 DT/jour de moyenne. Bien tenu.` });
                 const livraison = catTotals["Livraison"] || 0;
                 const bouffe = catTotals["Bouffe"] || 0;
-                if (livraison > bouffe * 2 && livraison > 60) {
-                    insights.push({ type: "warn", text: `La livraison est nettement au-dessus des courses en magasin. C'est le premier levier pour dégager de l'épargne.` });
-                }
-                if (epargneTotal >= 100) {
-                    insights.push({ type: "good", text: `${fmt(epargneTotal)} DT mis de côté à ce jour. La dynamique est là.` });
-                } else if (epargneTotal < 30) {
-                    insights.push({ type: "warn", text: `Épargne encore basse. Objectif à court terme : 10 DT à chaque rentrée d'argent.` });
-                }
-                if (!insights.length) {
-                    insights.push({ type: "good", text: `Rien de particulier à signaler pour l'instant. Continue de tracker.` });
-                }
+                if (livraison > bouffe * 2 && livraison > 60) insights.push({ type: "warn", text: `La livraison est nettement au-dessus des courses en magasin. C'est le premier levier pour dégager de l'épargne.` });
+                if (epargneTotal >= 100) insights.push({ type: "good", text: `${fmt(epargneTotal)} DT mis de côté à ce jour. La dynamique est là.` });
+                else if (epargneTotal < 30) insights.push({ type: "warn", text: `Épargne encore basse. Objectif à court terme : 10 DT à chaque rentrée d'argent.` });
+                if (!insights.length) insights.push({ type: "good", text: `Rien de particulier à signaler pour l'instant. Continue de tracker.` });
                 insights.forEach((i, idx) => {
                     const div = document.createElement("div");
                     div.className = "insight " + i.type;
@@ -2393,12 +2230,10 @@
                 const p = document.getElementById("page-depenses");
                 const chips = ["Tous", ...CATEGORIES.map((c) => c.name)];
                 const filtered = currentFilter === "Tous" ? state.depenses : state.depenses.filter((d) => d.category === currentFilter);
-
                 p.innerHTML = `
                     <div class="filter-scroll dep-filters"></div>
                     <div class="dep-list"></div>
                 `;
-
                 const fEl = p.querySelector(".dep-filters");
                 chips.forEach((c) => {
                     const btn = document.createElement("button");
@@ -2411,7 +2246,6 @@
                     };
                     fEl.appendChild(btn);
                 });
-
                 renderListInto(p.querySelector(".dep-list"), filtered, "depense");
             }
 
@@ -2425,11 +2259,9 @@
                 const p = document.getElementById("page-carte");
                 const activeCard = state.activeCard || "techno";
                 const ops = state.carte.filter((c) => (c.card || "techno") === activeCard);
-
                 const plus = ops.filter((c) => c.type === "Rechargement" || c.type === "Remboursement").reduce((s, c) => s + c.total_dt, 0);
                 const minus = ops.filter((c) => c.type === "Achat").reduce((s, c) => s + c.total_dt, 0);
                 const solde = plus - minus;
-
                 const isTechno = activeCard === "techno";
                 const plafondPct = isTechno ? Math.min(1, minus / 1000) : 0;
                 const cardName = isTechno ? "Zitouna Technologique" : "La Poste D17";
@@ -2450,7 +2282,6 @@
                             <div class="card-badge">D17</div>
                         </button>
                     </div>
-
                     <div class="carte-hero" style="background:${gradient};border-color:${border}">
                         <div class="hero-label">${cardName}</div>
                         <div class="hero-value" style="color:${valueColor}"><span class="carte-solde-val">0,00</span><span class="unit">DT</span></div>
@@ -2471,7 +2302,6 @@
                     </div>
                     <div class="carte-list"></div>
                 `;
-
                 p.querySelectorAll(".card-btn").forEach((btn) => {
                     btn.onclick = () => {
                         vibrate(40);
@@ -2479,7 +2309,6 @@
                         renderCarte();
                     };
                 });
-
                 animateNumber(p.querySelector(".carte-solde-val"), 0, solde);
                 if (isTechno) {
                     animateNumber(p.querySelector(".plafond-used"), 0, minus);
@@ -2490,7 +2319,6 @@
                         });
                     });
                 }
-
                 renderListInto(p.querySelector(".carte-list"), ops, "carte");
             }
 
@@ -2502,31 +2330,22 @@
                 const groups = groupByDay(items);
                 container.innerHTML = "";
                 let animDelay = 0;
-
                 groups.forEach((g) => {
                     const dayDiv = document.createElement("div");
                     dayDiv.className = "day-group";
-
                     let totalDay = 0;
-                    if (kind === "depense") {
-                        totalDay = g.items.filter((i) => i.category !== "Epargne" && i.category !== "Offset").reduce((s, i) => s + i.amount, 0);
-                    } else if (kind === "revenu") {
-                        totalDay = g.items.filter((i) => i.source !== "offset" && i.source !== "Offset").reduce((s, i) => s + i.amount, 0);
-                    } else {
-                        totalDay = g.items.filter((i) => i.type === "Achat").reduce((s, i) => s + i.total_dt, 0);
-                    }
-
+                    if (kind === "depense") totalDay = g.items.filter((i) => i.category !== "Epargne" && i.category !== "Offset").reduce((s, i) => s + i.amount, 0);
+                    else if (kind === "revenu") totalDay = g.items.filter((i) => i.source !== "offset" && i.source !== "Offset").reduce((s, i) => s + i.amount, 0);
+                    else totalDay = g.items.filter((i) => i.type === "Achat").reduce((s, i) => s + i.total_dt, 0);
                     const label = document.createElement("div");
                     label.className = "day-label";
                     label.innerHTML = `${dayLabel(g.date)} <span class="day-total">${fmt(totalDay)} DT</span>`;
                     dayDiv.appendChild(label);
-
                     g.items.forEach((it) => {
                         const row = document.createElement("div");
                         row.className = "list-item";
                         row.style.animationDelay = animDelay + "s";
                         animDelay += 0.03;
-
                         let iconGlyph,
                             iconColor,
                             iconBg,
@@ -2548,8 +2367,8 @@
                         } else if (kind === "revenu") {
                             const isOffset = it.source === "offset" || it.source === "Offset";
                             iconGlyph = isOffset ? "⟳" : "+";
-                            iconColor = isOffset ? "#666" : "#6DB89B";
-                            iconBg = isOffset ? "#66620" : "rgba(109, 184, 155, 0.15)";
+                            iconColor = isOffset ? "#888" : "#6DB89B";
+                            iconBg = isOffset ? "#88820" : "rgba(109, 184, 155, 0.15)";
                             desc = it.source || "—";
                             meta = isOffset ? "Offset" : "Rentrée";
                             amt = fmt(it.amount);
@@ -2568,7 +2387,6 @@
                             amt = fmt(it.total_dt);
                             cls = isAchat ? "neg" : "pos";
                         }
-
                         row.classList.add(cls);
                         row.innerHTML = `
                             <div class="cat-icon" style="background:${iconBg};color:${iconColor}">${iconGlyph}</div>
@@ -2605,12 +2423,10 @@
                 document.getElementById("carte-devise").value = "DT";
                 document.getElementById("carte-which").value = state.activeCard || "techno";
                 document.getElementById("delete-row").style.display = "none";
-
                 const typeSel = document.getElementById("entry-type");
                 if (currentPage === "revenus") typeSel.value = "revenu";
                 else if (currentPage === "carte") typeSel.value = "carte";
                 else typeSel.value = "depense";
-
                 renderCatGrid("Bouffe");
                 onEntryTypeChange();
                 document.getElementById("modal-backdrop").classList.add("open");
@@ -2621,10 +2437,8 @@
                 editing = { kind, id };
                 document.getElementById("modal-title").textContent = "Modifier";
                 document.getElementById("delete-row").style.display = "flex";
-
                 const typeSel = document.getElementById("entry-type");
                 typeSel.value = kind;
-
                 let entry;
                 if (kind === "depense") {
                     entry = state.depenses.find((d) => d.id === id);
@@ -2723,7 +2537,6 @@
                     toast("Montant requis", true);
                     return;
                 }
-
                 let kind, entry;
                 if (t === "depense") {
                     kind = "depense";
@@ -2773,7 +2586,6 @@
                         if (idx >= 0) state.carte[idx] = entry;
                     } else state.carte.push(entry);
                 }
-
                 closeModal();
                 render();
                 toast(editing ? "Modifié" : "Enregistré");
@@ -2850,7 +2662,7 @@
                     <button class="setting-row" onclick="reMigrate()" style="border-color:rgba(196, 168, 92, 0.3)">
                         <div class="info">
                             <div class="info-label" style="color:var(--accent)">Re-migrer depuis le fichier Excel</div>
-                            <div class="info-sub">Écrase tout et réinjecte les 60 dép. / 15 rev. / 12 carte</div>
+                            <div class="info-sub">Écrase tout et réinjecte les données initiales</div>
                         </div>
                         <span class="arrow" style="color:var(--accent)">↻</span>
                     </button>
@@ -2868,7 +2680,6 @@
                         Carnet · v1.0
                     </div>
                 `;
-
                 const usdIn = document.getElementById("s-usd");
                 const eurIn = document.getElementById("s-eur");
                 usdIn.onchange = (e) => {
@@ -2906,9 +2717,34 @@
                 toast("Synchronisé");
             }
 
+            async function reMigrate() {
+                if (!confirm("Écraser toutes les données par la version initiale ?")) return;
+                document.getElementById("loading").style.display = "flex";
+                document.getElementById("loading-text").textContent = "Nettoyage…";
+                setSync("syncing", "Reset…");
+                try {
+                    await sb.from("depenses").delete().neq("id", "");
+                    await sb.from("revenus").delete().neq("id", "");
+                    await sb.from("carte").delete().neq("id", "");
+                    await sb.from("taux").delete().neq("id", 0);
+                    document.getElementById("loading-text").textContent = "Réinjection…";
+                    await migrateInitial();
+                    localStorage.setItem(MIGRATED_KEY, "1");
+                    await fetchAll();
+                    document.getElementById("loading").style.display = "none";
+                    setSync("", "À jour");
+                    render();
+                    toast("Migration OK");
+                } catch (e) {
+                    document.getElementById("loading").style.display = "none";
+                    setSync("error", "Erreur");
+                    toast("Erreur", true);
+                }
+            }
+
             async function resetAll() {
                 vibrate(50);
-                if (!confirm("Vraiment tout effacer sur Supabase ? Cette action est irréversible.")) return;
+                if (!confirm("Vraiment tout effacer sur Supabase ?")) return;
                 if (!confirm("Confirmation finale : je supprime tout ?")) return;
                 setSync("syncing", "Effacement…");
                 try {
@@ -2953,7 +2789,6 @@
                     if (orig) orig.call(this, e);
                 };
             }
-
             const settingsBtn = document.getElementById("settings-btn");
             if (settingsBtn) {
                 const orig = settingsBtn.onclick;
@@ -2962,8 +2797,7 @@
                     if (orig) orig.call(this, e);
                 };
             }
-
-            console.log("[init] Vibration activée et swipe prêt. Catégorie Offset ajoutée.");
+            console.log("[init] Offset corrigé : affecte les soldes mais pas les statistiques.");
         </script>
     </body>
 </html>
