@@ -408,6 +408,7 @@
             }
 
             /* ============ DASHBOARD ============ */
+            /* Hero card */
             .hero-card {
                 background: linear-gradient(160deg, var(--surface) 0%, var(--bg-2) 100%);
                 border: 1px solid var(--border);
@@ -458,6 +459,71 @@
                 margin: 0 8px;
             }
 
+            /* Soldes grid */
+            .soldes-grid {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 10px;
+                margin-bottom: 22px;
+            }
+            .solde-card {
+                background: var(--surface);
+                border: 1px solid var(--border);
+                border-radius: 16px;
+                padding: 16px 14px;
+                transition: all 0.25s var(--ease);
+                position: relative;
+                overflow: hidden;
+            }
+            .solde-card:active {
+                transform: scale(0.98);
+            }
+            .solde-card .label {
+                font-size: 10px;
+                letter-spacing: 0.25em;
+                text-transform: uppercase;
+                color: var(--text-4);
+                margin-bottom: 6px;
+            }
+            .solde-card .value {
+                font-family: var(--font-display);
+                font-weight: 300;
+                font-size: 26px;
+                letter-spacing: -0.02em;
+                font-variant-numeric: tabular-nums;
+            }
+            .solde-card .value .unit {
+                font-size: 14px;
+                color: var(--text-3);
+                margin-left: 3px;
+            }
+            .solde-card .sub {
+                font-size: 10px;
+                color: var(--text-3);
+                margin-top: 4px;
+                letter-spacing: 0.05em;
+            }
+            .solde-card.cash .value {
+                color: var(--success);
+            }
+            .solde-card.d17 .value {
+                color: var(--amber);
+            }
+            .solde-card.techno .value {
+                color: var(--violet);
+            }
+            .solde-card.total .value {
+                color: var(--accent);
+            }
+            .solde-card .icon {
+                position: absolute;
+                top: 12px;
+                right: 12px;
+                font-size: 18px;
+                opacity: 0.2;
+            }
+
+            /* Stat grid (épargne, etc.) */
             .stat-grid {
                 display: grid;
                 grid-template-columns: 1fr 1fr;
@@ -2112,12 +2178,22 @@
                 const now = new Date();
                 const monthName = MONTH_NAMES[now.getMonth()];
 
-                // Total des revenus
+                // --- Calculs des soldes ---
                 const totalRevenus = state.revenus.reduce((s, r) => s + r.amount, 0);
-                // Total des dépenses (toutes catégories)
                 const totalDepenses = state.depenses.reduce((s, d) => s + d.amount, 0);
-                // Solde = revenus - dépenses
-                const solde = totalRevenus - totalDepenses;
+                const soldeCash = totalRevenus - totalDepenses; // liquide
+
+                // Soldes des cartes
+                const carteOps = state.carte;
+                const soldeCarte = (card) => {
+                    const ops = carteOps.filter((c) => c.card === card);
+                    const plus = ops.filter((c) => c.type === "Rechargement" || c.type === "Remboursement").reduce((s, c) => s + c.total_dt, 0);
+                    const minus = ops.filter((c) => c.type === "Achat").reduce((s, c) => s + c.total_dt, 0);
+                    return plus - minus;
+                };
+                const soldeD17 = soldeCarte("d17");
+                const soldeTechno = soldeCarte("techno");
+                const soldeTotal = soldeCash + soldeD17 + soldeTechno;
 
                 // Dépenses du mois (hors épargne) pour sous-titre
                 const thisMonth = state.depenses.filter((d) => isThisMonth(d.date) && d.category !== "Epargne");
@@ -2127,11 +2203,6 @@
 
                 // Épargne cumulée
                 const epargneTotal = state.depenses.filter((d) => d.category === "Epargne").reduce((s, d) => s + d.amount, 0);
-
-                // Solde carte
-                const cartePlus = state.carte.filter((c) => c.type === "Rechargement" || c.type === "Remboursement").reduce((s, c) => s + c.total_dt, 0);
-                const carteMinus = state.carte.filter((c) => c.type === "Achat").reduce((s, c) => s + c.total_dt, 0);
-                const carteSolde = cartePlus - carteMinus;
 
                 // Répartition sur l'ensemble des dépenses (hors épargne)
                 const allSpend = state.depenses.filter((d) => d.category !== "Epargne");
@@ -2143,6 +2214,7 @@
 
                 const p = document.getElementById("page-dashboard");
                 p.innerHTML = `
+                    <!-- Hero card : solde total -->
                     <div class="hero-card">
                         <div class="hero-label">Solde total</div>
                         <div class="hero-value"><span id="hero-total">0,00</span><span class="unit">DT</span></div>
@@ -2151,13 +2223,42 @@
                         </div>
                     </div>
 
+                    <!-- Soldes détaillés -->
+                    <div class="soldes-grid">
+                        <div class="solde-card cash">
+                            <div class="icon">💰</div>
+                            <div class="label">Cash</div>
+                            <div class="value"><span id="solde-cash">0,00</span><span class="unit">DT</span></div>
+                            <div class="sub">Liquide</div>
+                        </div>
+                        <div class="solde-card d17">
+                            <div class="icon">💳</div>
+                            <div class="label">D17</div>
+                            <div class="value"><span id="solde-d17">0,00</span><span class="unit">DT</span></div>
+                            <div class="sub">La Poste</div>
+                        </div>
+                        <div class="solde-card techno">
+                            <div class="icon">📱</div>
+                            <div class="label">Techno</div>
+                            <div class="value"><span id="solde-techno">0,00</span><span class="unit">DT</span></div>
+                            <div class="sub">Zitouna</div>
+                        </div>
+                        <div class="solde-card total">
+                            <div class="icon">⭐</div>
+                            <div class="label">Total</div>
+                            <div class="value"><span id="solde-total">0,00</span><span class="unit">DT</span></div>
+                            <div class="sub">Tout confondu</div>
+                        </div>
+                    </div>
+
+                    <!-- Anciennes stats (épargne, etc.) -->
                     <div class="stat-grid">
                         <div class="stat-card epargne">
                             <div class="label">Épargne cumulée</div>
                             <div class="value"><span id="stat-epargne">0,00</span><span class="unit">DT</span></div>
                         </div>
                         <div class="stat-card carte">
-                            <div class="label">Solde carte</div>
+                            <div class="label">Solde carte (moyenne)</div>
                             <div class="value"><span id="stat-carte">0,00</span><span class="unit">DT</span></div>
                         </div>
                     </div>
@@ -2187,9 +2288,15 @@
                     <div id="insights"></div>
                 `;
 
-                animateNumber(document.getElementById("hero-total"), 0, solde);
+                // Animate tous les soldes
+                animateNumber(document.getElementById("hero-total"), 0, soldeTotal);
+                animateNumber(document.getElementById("solde-cash"), 0, soldeCash);
+                animateNumber(document.getElementById("solde-d17"), 0, soldeD17);
+                animateNumber(document.getElementById("solde-techno"), 0, soldeTechno);
+                animateNumber(document.getElementById("solde-total"), 0, soldeTotal);
                 animateNumber(document.getElementById("stat-epargne"), 0, epargneTotal);
-                animateNumber(document.getElementById("stat-carte"), 0, carteSolde);
+                const moyenneCarte = (soldeD17 + soldeTechno) / 2;
+                animateNumber(document.getElementById("stat-carte"), 0, moyenneCarte);
                 animateNumber(document.getElementById("goal-val"), 0, epargneTotal);
 
                 const goalPct = Math.min(1, epargneTotal / 1200);
