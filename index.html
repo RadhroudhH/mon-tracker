@@ -2112,13 +2112,20 @@
                 const now = new Date();
                 const monthName = MONTH_NAMES[now.getMonth()];
 
-                // Dépenses du mois (hors épargne)
+                // Total des revenus
+                const totalRevenus = state.revenus.reduce((s, r) => s + r.amount, 0);
+                // Total des dépenses (toutes catégories)
+                const totalDepenses = state.depenses.reduce((s, d) => s + d.amount, 0);
+                // Solde = revenus - dépenses
+                const solde = totalRevenus - totalDepenses;
+
+                // Dépenses du mois (hors épargne) pour sous-titre
                 const thisMonth = state.depenses.filter((d) => isThisMonth(d.date) && d.category !== "Epargne");
                 const monthTotal = thisMonth.reduce((s, d) => s + d.amount, 0);
                 const daysActive = new Set(thisMonth.map((d) => d.date)).size;
                 const avgDay = daysActive ? monthTotal / daysActive : 0;
 
-                // Épargne cumulée (toutes dates)
+                // Épargne cumulée
                 const epargneTotal = state.depenses.filter((d) => d.category === "Epargne").reduce((s, d) => s + d.amount, 0);
 
                 // Solde carte
@@ -2126,7 +2133,7 @@
                 const carteMinus = state.carte.filter((c) => c.type === "Achat").reduce((s, c) => s + c.total_dt, 0);
                 const carteSolde = cartePlus - carteMinus;
 
-                // ---- RÉPARTITION SUR L'ENSEMBLE DES DÉPENSES (hors épargne) ----
+                // Répartition sur l'ensemble des dépenses (hors épargne)
                 const allSpend = state.depenses.filter((d) => d.category !== "Epargne");
                 const catTotals = {};
                 allSpend.forEach((d) => {
@@ -2137,10 +2144,10 @@
                 const p = document.getElementById("page-dashboard");
                 p.innerHTML = `
                     <div class="hero-card">
-                        <div class="hero-label">Dépensé en ${monthName}</div>
+                        <div class="hero-label">Solde total</div>
                         <div class="hero-value"><span id="hero-total">0,00</span><span class="unit">DT</span></div>
                         <div class="hero-sub">
-                            ${fmt(avgDay)} DT/jour <span class="sep">·</span> ${daysActive} jour${daysActive > 1 ? "s" : ""}
+                            Dépensé en ${monthName} : ${fmt(monthTotal)} DT <span class="sep">·</span> ${fmt(avgDay)} DT/jour
                         </div>
                     </div>
 
@@ -2180,7 +2187,7 @@
                     <div id="insights"></div>
                 `;
 
-                animateNumber(document.getElementById("hero-total"), 0, monthTotal);
+                animateNumber(document.getElementById("hero-total"), 0, solde);
                 animateNumber(document.getElementById("stat-epargne"), 0, epargneTotal);
                 animateNumber(document.getElementById("stat-carte"), 0, carteSolde);
                 animateNumber(document.getElementById("goal-val"), 0, epargneTotal);
@@ -2219,11 +2226,10 @@
                         listEl.appendChild(row);
                     });
                 } else {
-                    // Fallback si aucune dépense
                     document.getElementById("repart-bar").innerHTML = '<div style="color:var(--text-4);padding:10px 0;text-align:center;font-size:12px;">Aucune dépense enregistrée</div>';
                 }
 
-                // Insights (basés sur les données du mois)
+                // Insights
                 const ins = document.getElementById("insights");
                 ins.innerHTML = "";
                 const insights = [];
@@ -2799,7 +2805,6 @@
                 if (e.target.id === "modal-backdrop") closeModal();
             });
 
-            // FAB vibration
             const fab = document.querySelector(".fab");
             if (fab) {
                 const orig = fab.onclick;
