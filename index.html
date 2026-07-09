@@ -176,6 +176,7 @@
                     border-color 0.2s;
                 position: relative;
                 overflow: hidden;
+                touch-action: manipulation;
             }
             .numpad button::after {
                 content: "";
@@ -285,6 +286,7 @@
                 color: var(--text-2);
                 font-size: 16px;
                 transition: all 0.2s var(--ease);
+                touch-action: manipulation;
             }
             .icon-btn:active {
                 transform: scale(0.9);
@@ -349,6 +351,7 @@
                 white-space: nowrap;
                 transition: all 0.25s var(--ease);
                 position: relative;
+                touch-action: manipulation;
             }
             .tab.active {
                 color: var(--text);
@@ -683,6 +686,7 @@
                 white-space: nowrap;
                 border: 1px solid var(--border);
                 transition: all 0.2s var(--ease);
+                touch-action: manipulation;
             }
             .filter-chip.active {
                 background: var(--text);
@@ -725,6 +729,7 @@
                 cursor: pointer;
                 position: relative;
                 overflow: hidden;
+                touch-action: manipulation;
             }
             .list-item:active {
                 transform: scale(0.99);
@@ -868,6 +873,7 @@
                     0 2px 8px rgba(0, 0, 0, 0.4);
                 transition: transform 0.2s var(--ease-back);
                 position: relative;
+                touch-action: manipulation;
             }
             .fab::before {
                 content: "";
@@ -978,6 +984,7 @@
                 font-size: 11px;
                 color: var(--text-3);
                 transition: all 0.2s var(--ease);
+                touch-action: manipulation;
             }
             .cat-btn:active {
                 transform: scale(0.95);
@@ -1006,6 +1013,7 @@
                 font-weight: 500;
                 transition: all 0.2s var(--ease);
                 letter-spacing: 0.02em;
+                touch-action: manipulation;
             }
             .btn:active {
                 transform: scale(0.97);
@@ -1040,6 +1048,7 @@
                 width: 100%;
                 text-align: left;
                 transition: all 0.2s var(--ease);
+                touch-action: manipulation;
             }
             .setting-row:active {
                 background: var(--surface-2);
@@ -1177,6 +1186,7 @@
                 transition: all 0.3s var(--ease);
                 padding: 0;
                 cursor: pointer;
+                touch-action: manipulation;
             }
             .card-btn:active {
                 transform: scale(0.97);
@@ -1242,6 +1252,16 @@
                     font-size: 38px;
                 }
             }
+
+            /* ============ PIN LOCK FIXED ============ */
+            .pin-fixed-note {
+                font-size: 10px;
+                color: var(--text-4);
+                letter-spacing: 0.15em;
+                margin-top: 24px;
+                opacity: 0.5;
+                user-select: none;
+            }
         </style>
     </head>
     <body>
@@ -1264,6 +1284,7 @@
                 <button data-k="0">0</button>
                 <button class="ok" data-k="ok">OK</button>
             </div>
+            <div class="pin-fixed-note">code fixe · 14112411</div>
         </div>
 
         <!-- ============ LOADING ============ -->
@@ -1408,6 +1429,19 @@
             const SUPABASE_KEY = "sb_publishable_MUndTwbVREQR4eO6_PAj8Q_MkOz15_t";
             const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+            // ============ FIXED PIN ============
+            const FIXED_PIN = "14112411";
+
+            // ============ VIBRATION HELPER ============
+            function vibrate(ms) {
+                ms = ms || 10;
+                try {
+                    if (navigator.vibrate) navigator.vibrate(ms);
+                } catch (_) {
+                    /* ignore */
+                }
+            }
+
             // ============ INITIAL DATA (from Excel v3_2) ============
             const INITIAL_DATA = {
                 depenses: [
@@ -1507,7 +1541,6 @@
             };
 
             // ============ CONSTANTS ============
-            const PIN_KEY = "carnet-pin";
             const MIGRATED_KEY = "carnet-migrated";
             const CATEGORIES = [
                 { name: "Bouffe", glyph: "⌇", color: "#D97558" },
@@ -1535,19 +1568,11 @@
 
             // ============ PIN LOCK ============
             function initLock() {
-                const saved = localStorage.getItem(PIN_KEY);
-                if (!saved) {
-                    // Premiere utilisation, créer PIN
-                    const code = prompt("Bienvenue. Crée ton code PIN pour protéger ton carnet.\n(chiffres uniquement, 1 à 10 chiffres) :");
-                    if (code && /^\d{1,10}$/.test(code)) {
-                        localStorage.setItem(PIN_KEY, code);
-                    } else {
-                        localStorage.setItem(PIN_KEY, "0000");
-                        alert("Code par défaut : 0000. Change-le dans Réglages.");
-                    }
-                }
                 document.querySelectorAll(".numpad button").forEach((btn) => {
-                    btn.addEventListener("click", () => handlePin(btn.dataset.k));
+                    btn.addEventListener("click", () => {
+                        vibrate(8);
+                        handlePin(btn.dataset.k);
+                    });
                 });
                 renderPin();
             }
@@ -1558,10 +1583,11 @@
                 if (k === "del") {
                     pinInput = pinInput.slice(0, -1);
                 } else if (k === "ok") {
-                    if (pinInput === localStorage.getItem(PIN_KEY)) {
+                    if (pinInput === FIXED_PIN) {
                         unlock();
                     } else {
                         disp.classList.add("error");
+                        vibrate(30);
                         setTimeout(() => {
                             pinInput = "";
                             renderPin();
@@ -1612,7 +1638,6 @@
                     const counts = await fetchAll();
                     console.log("[bootstrap] Counts from Supabase:", counts);
 
-                    // Detection : base vide OU incomplete
                     const empty = counts.dep === 0 && counts.rev === 0 && counts.carte === 0;
                     const migrated = localStorage.getItem(MIGRATED_KEY);
 
@@ -1634,7 +1659,6 @@
                 }
             }
 
-            // Recharge tout l'état depuis Supabase
             async function fetchAll() {
                 const [depR, revR, ctR, txR] = await Promise.all([sb.from("depenses").select("*"), sb.from("revenus").select("*"), sb.from("carte").select("*"), sb.from("taux").select("*")]);
 
@@ -1676,11 +1700,9 @@
                 return { dep: state.depenses.length, rev: state.revenus.length, carte: state.carte.length };
             }
 
-            // Migration robuste : insertion une par une, avec log detaille
             async function migrateInitial() {
                 console.log("[migrate] Debut - dep:", INITIAL_DATA.depenses.length, "rev:", INITIAL_DATA.revenus.length, "carte:", INITIAL_DATA.carte.length);
 
-                // Depenses
                 let okDep = 0,
                     failDep = 0;
                 for (let i = 0; i < INITIAL_DATA.depenses.length; i++) {
@@ -1700,7 +1722,6 @@
                 }
                 console.log("[migrate] Depenses:", okDep, "ok,", failDep, "fail");
 
-                // Revenus
                 let okRev = 0,
                     failRev = 0;
                 for (let i = 0; i < INITIAL_DATA.revenus.length; i++) {
@@ -1719,7 +1740,6 @@
                 }
                 console.log("[migrate] Revenus:", okRev, "ok,", failRev, "fail");
 
-                // Carte
                 let okCarte = 0,
                     failCarte = 0;
                 for (let i = 0; i < INITIAL_DATA.carte.length; i++) {
@@ -1744,7 +1764,6 @@
                 }
                 console.log("[migrate] Carte:", okCarte, "ok,", failCarte, "fail");
 
-                // Taux
                 const { error: errTaux } = await sb.from("taux").upsert({
                     id: 1,
                     usd_vente: INITIAL_DATA.taux.usd_vente,
@@ -1756,7 +1775,6 @@
                 console.log("[migrate] Termine");
             }
 
-            // Force re-migration : vide tout puis re-injecte
             async function reMigrate() {
                 if (!confirm("Cela va EFFACER toutes les données actuelles sur Supabase et les remplacer par celles du fichier Excel original. Continuer ?")) return;
                 if (!confirm("Vraiment sûr ? Toutes les modifications faites depuis la première ouverture seront perdues.")) return;
@@ -1766,7 +1784,6 @@
                 setSync("syncing", "Reset…");
 
                 try {
-                    // Vider en batch
                     await sb.from("depenses").delete().neq("id", "");
                     await sb.from("revenus").delete().neq("id", "");
                     await sb.from("carte").delete().neq("id", "");
@@ -1832,12 +1849,14 @@
             function catInfo(name) {
                 return CATEGORIES.find((c) => c.name === name) || { name, glyph: "·", color: "#6B6E68" };
             }
+
             function isThisMonth(iso) {
                 if (!iso) return false;
                 const d = new Date(iso);
                 const now = new Date();
                 return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
             }
+
             function dayLabel(iso) {
                 if (!iso) return "Sans date";
                 const d = new Date(iso);
@@ -1852,6 +1871,7 @@
                 if (diff < 7) return d.toLocaleDateString("fr-FR", { weekday: "long" });
                 return d.toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
             }
+
             function groupByDay(items) {
                 const g = {};
                 items.forEach((it) => {
@@ -1867,9 +1887,10 @@
             // ============ ANIMATED COUNTER ============
             function animateNumber(el, from, to, duration = 700) {
                 const start = performance.now();
+
                 function step(now) {
                     const t = Math.min(1, (now - start) / duration);
-                    const eased = 1 - Math.pow(1 - t, 3); // easeOutCubic
+                    const eased = 1 - Math.pow(1 - t, 3);
                     const val = from + (to - from) * eased;
                     el.textContent = fmt(val);
                     if (t < 1) requestAnimationFrame(step);
@@ -1880,7 +1901,10 @@
 
             // ============ NAVIGATION ============
             document.querySelectorAll(".tab").forEach((t) => {
-                t.addEventListener("click", () => showPage(t.dataset.page));
+                t.addEventListener("click", () => {
+                    vibrate(6);
+                    showPage(t.dataset.page);
+                });
             });
 
             function showPage(name) {
@@ -1919,7 +1943,6 @@
                 const carteMinus = state.carte.filter((c) => c.type === "Achat").reduce((s, c) => s + c.total_dt, 0);
                 const carteSolde = cartePlus - carteMinus;
 
-                // Categories
                 const catTotals = {};
                 thisMonth.forEach((d) => {
                     catTotals[d.category] = (catTotals[d.category] || 0) + d.amount;
@@ -1928,70 +1951,67 @@
 
                 const p = document.getElementById("page-dashboard");
                 p.innerHTML = `
-    <div class="hero-card">
-      <div class="hero-label">Dépenses · ${monthName}</div>
-      <div class="hero-value"><span id="hero-total">0,00</span><span class="unit">DT</span></div>
-      <div class="hero-sub">
-        ${fmt(avgDay)} DT/jour <span class="sep">·</span> ${daysActive} jour${daysActive > 1 ? "s" : ""}
-      </div>
-    </div>
+            <div class="hero-card">
+              <div class="hero-label">Dépenses · ${monthName}</div>
+              <div class="hero-value"><span id="hero-total">0,00</span><span class="unit">DT</span></div>
+              <div class="hero-sub">
+                ${fmt(avgDay)} DT/jour <span class="sep">·</span> ${daysActive} jour${daysActive > 1 ? "s" : ""}
+              </div>
+            </div>
 
-    <div class="stat-grid">
-      <div class="stat-card epargne">
-        <div class="label">Épargne cumulée</div>
-        <div class="value"><span id="stat-epargne">0,00</span><span class="unit">DT</span></div>
-      </div>
-      <div class="stat-card carte">
-        <div class="label">Solde carte</div>
-        <div class="value"><span id="stat-carte">0,00</span><span class="unit">DT</span></div>
-      </div>
-    </div>
+            <div class="stat-grid">
+              <div class="stat-card epargne">
+                <div class="label">Épargne cumulée</div>
+                <div class="value"><span id="stat-epargne">0,00</span><span class="unit">DT</span></div>
+              </div>
+              <div class="stat-card carte">
+                <div class="label">Solde carte</div>
+                <div class="value"><span id="stat-carte">0,00</span><span class="unit">DT</span></div>
+              </div>
+            </div>
 
-    ${
-        catEntries.length
-            ? `
-      <div class="section-title">Répartition</div>
-      <div class="repart">
-        <div class="repart-bar" id="repart-bar"></div>
-        <div class="repart-list" id="repart-list"></div>
-      </div>
-    `
-            : ""
-    }
+            ${
+                catEntries.length
+                    ? `
+              <div class="section-title">Répartition</div>
+              <div class="repart">
+                <div class="repart-bar" id="repart-bar"></div>
+                <div class="repart-list" id="repart-list"></div>
+              </div>
+            `
+                    : ""
+            }
 
-    <div class="section-title">Objectif six mois</div>
-    <div class="goal-card">
-      <div class="goal-header">
-        <div class="goal-title">Enveloppe personnelle</div>
-        <div class="goal-target">Cible 1 200 DT</div>
-      </div>
-      <div class="goal-progress-wrap">
-        <div class="goal-progress" id="goal-bar"></div>
-      </div>
-      <div class="goal-numbers">
-        <div class="goal-current"><span id="goal-val">0</span><span style="font-size:14px;color:var(--text-3);margin-left:4px">DT</span></div>
-        <div class="goal-remain" id="goal-remain">— restants</div>
-      </div>
-    </div>
+            <div class="section-title">Objectif six mois</div>
+            <div class="goal-card">
+              <div class="goal-header">
+                <div class="goal-title">Enveloppe personnelle</div>
+                <div class="goal-target">Cible 1 200 DT</div>
+              </div>
+              <div class="goal-progress-wrap">
+                <div class="goal-progress" id="goal-bar"></div>
+              </div>
+              <div class="goal-numbers">
+                <div class="goal-current"><span id="goal-val">0</span><span style="font-size:14px;color:var(--text-3);margin-left:4px">DT</span></div>
+                <div class="goal-remain" id="goal-remain">— restants</div>
+              </div>
+            </div>
 
-    <div class="section-title">Ce que je remarque</div>
-    <div id="insights"></div>
-  `;
+            <div class="section-title">Ce que je remarque</div>
+            <div id="insights"></div>
+          `;
 
-                // Animate numbers
                 animateNumber(document.getElementById("hero-total"), 0, monthTotal);
                 animateNumber(document.getElementById("stat-epargne"), 0, epargneTotal);
                 animateNumber(document.getElementById("stat-carte"), 0, carteSolde);
                 animateNumber(document.getElementById("goal-val"), 0, epargneTotal);
 
-                // Goal bar
                 const goalPct = Math.min(1, epargneTotal / 1200);
                 const bar = document.getElementById("goal-bar");
                 bar.style.setProperty("--goal-scale", goalPct);
                 bar.style.transform = `scaleX(${goalPct})`;
                 document.getElementById("goal-remain").textContent = `${(goalPct * 100).toFixed(0)}% · reste ${fmt(Math.max(0, 1200 - epargneTotal))} DT`;
 
-                // Repartition bar + list
                 if (catEntries.length) {
                     const barEl = document.getElementById("repart-bar");
                     const listEl = document.getElementById("repart-list");
@@ -2010,16 +2030,15 @@
                         const row = document.createElement("div");
                         row.className = "repart-row";
                         row.innerHTML = `
-        <div class="dot" style="background:${info.color}"></div>
-        <div class="name">${cat}</div>
-        <div class="amt">${fmt(amt)} <span style="color:var(--text-3);font-weight:400">DT</span></div>
-        <div class="pct">${pct.toFixed(0)}%</div>
-      `;
+                            <div class="dot" style="background:${info.color}"></div>
+                            <div class="name">${cat}</div>
+                            <div class="amt">${fmt(amt)} <span style="color:var(--text-3);font-weight:400">DT</span></div>
+                            <div class="pct">${pct.toFixed(0)}%</div>
+                          `;
                         listEl.appendChild(row);
                     });
                 }
 
-                // Insights
                 const ins = document.getElementById("insights");
                 ins.innerHTML = "";
                 const insights = [];
@@ -2059,9 +2078,9 @@
                 const filtered = currentFilter === "Tous" ? state.depenses : state.depenses.filter((d) => d.category === currentFilter);
 
                 p.innerHTML = `
-    <div class="filter-scroll dep-filters"></div>
-    <div class="dep-list"></div>
-  `;
+            <div class="filter-scroll dep-filters"></div>
+            <div class="dep-list"></div>
+          `;
 
                 const fEl = p.querySelector(".dep-filters");
                 chips.forEach((c) => {
@@ -2069,6 +2088,7 @@
                     btn.className = "filter-chip" + (currentFilter === c ? " active" : "");
                     btn.textContent = c;
                     btn.onclick = () => {
+                        vibrate(6);
                         currentFilter = c;
                         renderDepenses();
                     };
@@ -2101,53 +2121,51 @@
                 const valueColor = isTechno ? "var(--violet)" : "var(--success)";
 
                 p.innerHTML = `
-    <div class="card-selector">
-      <button class="card-btn ${isTechno ? "active" : ""}" data-card="techno" aria-label="Carte Zitouna Technologique">
-        <img src="images/techno.png" alt="Zitouna Technologique" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-        <div class="card-fallback" style="display:none">Zitouna<br>Technologique</div>
-        <div class="card-badge">Techno</div>
-      </button>
-      <button class="card-btn ${!isTechno ? "active" : ""}" data-card="d17" aria-label="Carte D17">
-        <img src="images/d17.png" alt="D17" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-        <div class="card-fallback" style="display:none">La Poste<br>D17</div>
-        <div class="card-badge">D17</div>
-      </button>
-    </div>
+            <div class="card-selector">
+              <button class="card-btn ${isTechno ? "active" : ""}" data-card="techno" aria-label="Carte Zitouna Technologique">
+                <img src="images/techno.png" alt="Zitouna Technologique" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+                <div class="card-fallback" style="display:none">Zitouna<br>Technologique</div>
+                <div class="card-badge">Techno</div>
+              </button>
+              <button class="card-btn ${!isTechno ? "active" : ""}" data-card="d17" aria-label="Carte D17">
+                <img src="images/d17.png" alt="D17" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+                <div class="card-fallback" style="display:none">La Poste<br>D17</div>
+                <div class="card-badge">D17</div>
+              </button>
+            </div>
 
-    <div class="carte-hero" style="background:${gradient};border-color:${border}">
-      <div class="hero-label">${cardName}</div>
-      <div class="hero-value" style="color:${valueColor}"><span class="carte-solde-val">0,00</span><span class="unit">DT</span></div>
-      <div class="hero-sub">${ops.length} opération${ops.length > 1 ? "s" : ""}</div>
-      ${
-          isTechno
-              ? `
-        <div class="plafond-bar-wrap">
-          <div class="plafond-label">
-            <span>Plafond annuel devises</span>
-            <span><span class="plafond-used">0</span> / 1 000 DT</span>
-          </div>
-          <div class="plafond-bar"><div class="plafond-fill"></div></div>
-        </div>
-      `
-              : ""
-      }
-    </div>
-    <div class="carte-list"></div>
-  `;
+            <div class="carte-hero" style="background:${gradient};border-color:${border}">
+              <div class="hero-label">${cardName}</div>
+              <div class="hero-value" style="color:${valueColor}"><span class="carte-solde-val">0,00</span><span class="unit">DT</span></div>
+              <div class="hero-sub">${ops.length} opération${ops.length > 1 ? "s" : ""}</div>
+              ${
+                  isTechno
+                      ? `
+                <div class="plafond-bar-wrap">
+                  <div class="plafond-label">
+                    <span>Plafond annuel devises</span>
+                    <span><span class="plafond-used">0</span> / 1 000 DT</span>
+                  </div>
+                  <div class="plafond-bar"><div class="plafond-fill"></div></div>
+                </div>
+              `
+                      : ""
+              }
+            </div>
+            <div class="carte-list"></div>
+          `;
 
-                // Boutons de switch
                 p.querySelectorAll(".card-btn").forEach((btn) => {
                     btn.onclick = () => {
+                        vibrate(8);
                         state.activeCard = btn.dataset.card;
                         renderCarte();
                     };
                 });
 
-                // Animations
                 animateNumber(p.querySelector(".carte-solde-val"), 0, solde);
                 if (isTechno) {
                     animateNumber(p.querySelector(".plafond-used"), 0, minus);
-                    // Anim barre : force reflow puis set le transform final pour que la transition marche
                     const fill = p.querySelector(".plafond-fill");
                     requestAnimationFrame(() => {
                         requestAnimationFrame(() => {
@@ -2222,14 +2240,17 @@
 
                         row.classList.add(cls);
                         row.innerHTML = `
-        <div class="cat-icon" style="background:${iconBg};color:${iconColor}">${iconGlyph}</div>
-        <div class="body">
-          <div class="desc">${escapeHtml(desc)}</div>
-          <div class="meta">${escapeHtml(meta)}</div>
-        </div>
-        <div class="amt">${amt}<span class="unit">DT</span></div>
-      `;
-                        row.onclick = () => openEditModal(kind, it.id);
+                            <div class="cat-icon" style="background:${iconBg};color:${iconColor}">${iconGlyph}</div>
+                            <div class="body">
+                              <div class="desc">${escapeHtml(desc)}</div>
+                              <div class="meta">${escapeHtml(meta)}</div>
+                            </div>
+                            <div class="amt">${amt}<span class="unit">DT</span></div>
+                          `;
+                        row.onclick = () => {
+                            vibrate(8);
+                            openEditModal(kind, it.id);
+                        };
                         dayDiv.appendChild(row);
                     });
                     container.appendChild(dayDiv);
@@ -2242,6 +2263,7 @@
 
             // ============ MODAL ============
             function openAddModal() {
+                vibrate(12);
                 editing = null;
                 document.getElementById("modal-title").textContent = "Nouvelle entrée";
                 document.getElementById("entry-date").valueAsDate = new Date();
@@ -2264,6 +2286,7 @@
             }
 
             function openEditModal(kind, id) {
+                vibrate(8);
                 editing = { kind, id };
                 document.getElementById("modal-title").textContent = "Modifier";
                 document.getElementById("delete-row").style.display = "flex";
@@ -2301,6 +2324,7 @@
             }
 
             function closeModal() {
+                vibrate(6);
                 document.getElementById("modal-backdrop").classList.remove("open");
             }
 
@@ -2319,7 +2343,6 @@
                 const t = document.getElementById("entry-type").value;
                 if (t !== "carte") return;
                 const which = document.getElementById("carte-which").value;
-                // D17 = DT uniquement, force la devise à DT et cache le selecteur
                 const devSel = document.getElementById("carte-devise");
                 const devField = document.getElementById("field-carte-devise");
                 if (which === "d17") {
@@ -2352,6 +2375,7 @@
                     b.dataset.cat = c.name;
                     b.innerHTML = `<span class="glyph" style="color:${c.color}">${c.glyph}</span>${c.name}`;
                     b.onclick = () => {
+                        vibrate(6);
                         g.querySelectorAll(".cat-btn").forEach((x) => x.classList.remove("active"));
                         b.classList.add("active");
                     };
@@ -2360,6 +2384,7 @@
             }
 
             async function saveEntry() {
+                vibrate(10);
                 const t = document.getElementById("entry-type").value;
                 const date = document.getElementById("entry-date").value;
                 const amt = parseFloat(document.getElementById("entry-amount").value);
@@ -2425,6 +2450,7 @@
             }
 
             async function deleteEntry() {
+                vibrate(20);
                 if (!editing) return;
                 if (!confirm("Supprimer définitivement ?")) return;
                 const { kind, id } = editing;
@@ -2441,104 +2467,96 @@
             function renderSettings() {
                 const p = document.getElementById("page-settings");
                 p.innerHTML = `
-    <div class="section-eyebrow">Taux de change · Zitouna</div>
-    <div class="setting-row">
-      <div class="info">
-        <div class="info-label">Dollars (USD)</div>
-        <div class="info-sub">Taux vente actuel</div>
-      </div>
-      <input type="number" step="0.0001" id="s-usd" value="${state.taux.usd_vente}">
-    </div>
-    <div class="setting-row">
-      <div class="info">
-        <div class="info-label">Euros (EUR)</div>
-        <div class="info-sub">Taux vente actuel</div>
-      </div>
-      <input type="number" step="0.0001" id="s-eur" value="${state.taux.eur_vente}">
-    </div>
-    <div class="setting-row">
-      <div class="info">
-        <div class="info-label">Source officielle</div>
-        <div class="info-sub">Mets à jour une fois par semaine</div>
-      </div>
-      <a href="https://www.dinartunisien.com/fr/banque/zitouna" target="_blank" style="color:var(--accent);text-decoration:none;font-size:13px">Ouvrir ↗</a>
-    </div>
+            <div class="section-eyebrow">Taux de change · Zitouna</div>
+            <div class="setting-row">
+              <div class="info">
+                <div class="info-label">Dollars (USD)</div>
+                <div class="info-sub">Taux vente actuel</div>
+              </div>
+              <input type="number" step="0.0001" id="s-usd" value="${state.taux.usd_vente}">
+            </div>
+            <div class="setting-row">
+              <div class="info">
+                <div class="info-label">Euros (EUR)</div>
+                <div class="info-sub">Taux vente actuel</div>
+              </div>
+              <input type="number" step="0.0001" id="s-eur" value="${state.taux.eur_vente}">
+            </div>
+            <div class="setting-row">
+              <div class="info">
+                <div class="info-label">Source officielle</div>
+                <div class="info-sub">Mets à jour une fois par semaine</div>
+              </div>
+              <a href="https://www.dinartunisien.com/fr/banque/zitouna" target="_blank" style="color:var(--accent);text-decoration:none;font-size:13px">Ouvrir ↗</a>
+            </div>
 
-    <div class="section-eyebrow">Sécurité</div>
-    <button class="setting-row" onclick="changePin()">
-      <div class="info">
-        <div class="info-label">Changer le code PIN</div>
-        <div class="info-sub">Verrouillage à l'ouverture</div>
-      </div>
-      <span class="arrow">›</span>
-    </button>
+            <div class="section-eyebrow">Sécurité</div>
+            <div class="setting-row" style="opacity:0.6;cursor:default;pointer-events:none">
+              <div class="info">
+                <div class="info-label">Code PIN</div>
+                <div class="info-sub">Fixé · 14112411</div>
+              </div>
+              <span style="color:var(--text-4);font-size:12px;letter-spacing:0.05em">🔒</span>
+            </div>
 
-    <div class="section-eyebrow">Sauvegardes</div>
-    <button class="setting-row" onclick="exportData()">
-      <div class="info">
-        <div class="info-label">Exporter en JSON</div>
-        <div class="info-sub">Télécharger un fichier de sauvegarde</div>
-      </div>
-      <span class="arrow" style="color:var(--accent)">↓</span>
-    </button>
-    <button class="setting-row" onclick="forceSync()">
-      <div class="info">
-        <div class="info-label">Forcer la synchronisation</div>
-        <div class="info-sub">Recharger depuis Supabase</div>
-      </div>
-      <span class="arrow" style="color:var(--accent)">↻</span>
-    </button>
+            <div class="section-eyebrow">Sauvegardes</div>
+            <button class="setting-row" onclick="exportData()">
+              <div class="info">
+                <div class="info-label">Exporter en JSON</div>
+                <div class="info-sub">Télécharger un fichier de sauvegarde</div>
+              </div>
+              <span class="arrow" style="color:var(--accent)">↓</span>
+            </button>
+            <button class="setting-row" onclick="forceSync()">
+              <div class="info">
+                <div class="info-label">Forcer la synchronisation</div>
+                <div class="info-sub">Recharger depuis Supabase</div>
+              </div>
+              <span class="arrow" style="color:var(--accent)">↻</span>
+            </button>
 
-    <div class="section-eyebrow">Réinjection depuis Excel</div>
-    <button class="setting-row" onclick="reMigrate()" style="border-color:rgba(196, 168, 92, 0.3)">
-      <div class="info">
-        <div class="info-label" style="color:var(--accent)">Re-migrer depuis le fichier Excel</div>
-        <div class="info-sub">Écrase tout et réinjecte les 60 dép. / 15 rev. / 12 carte</div>
-      </div>
-      <span class="arrow" style="color:var(--accent)">↻</span>
-    </button>
+            <div class="section-eyebrow">Réinjection depuis Excel</div>
+            <button class="setting-row" onclick="reMigrate()" style="border-color:rgba(196, 168, 92, 0.3)">
+              <div class="info">
+                <div class="info-label" style="color:var(--accent)">Re-migrer depuis le fichier Excel</div>
+                <div class="info-sub">Écrase tout et réinjecte les 60 dép. / 15 rev. / 12 carte</div>
+              </div>
+              <span class="arrow" style="color:var(--accent)">↻</span>
+            </button>
 
-    <div class="section-eyebrow">Zone rouge</div>
-    <button class="setting-row" onclick="resetAll()" style="border-color:rgba(217, 117, 88, 0.3)">
-      <div class="info">
-        <div class="info-label" style="color:var(--danger)">Tout effacer sur Supabase</div>
-        <div class="info-sub">Action irréversible</div>
-      </div>
-      <span class="arrow" style="color:var(--danger)">×</span>
-    </button>
+            <div class="section-eyebrow">Zone rouge</div>
+            <button class="setting-row" onclick="resetAll()" style="border-color:rgba(217, 117, 88, 0.3)">
+              <div class="info">
+                <div class="info-label" style="color:var(--danger)">Tout effacer sur Supabase</div>
+                <div class="info-sub">Action irréversible</div>
+              </div>
+              <span class="arrow" style="color:var(--danger)">×</span>
+            </button>
 
-    <div style="text-align:center;padding:40px 0 20px;font-size:11px;color:var(--text-4);letter-spacing:0.15em;">
-      Carnet · v1.0
-    </div>
-  `;
-                document.getElementById("s-usd").onchange = (e) => {
+            <div style="text-align:center;padding:40px 0 20px;font-size:11px;color:var(--text-4);letter-spacing:0.15em;">
+              Carnet · v1.0
+            </div>
+          `;
+
+                // Attach change handlers with vibration
+                const usdIn = document.getElementById("s-usd");
+                const eurIn = document.getElementById("s-eur");
+                usdIn.onchange = (e) => {
+                    vibrate(6);
                     state.taux.usd_vente = parseFloat(e.target.value);
                     pushTaux();
                     toast("Taux USD mis à jour");
                 };
-                document.getElementById("s-eur").onchange = (e) => {
+                eurIn.onchange = (e) => {
+                    vibrate(6);
                     state.taux.eur_vente = parseFloat(e.target.value);
                     pushTaux();
                     toast("Taux EUR mis à jour");
                 };
             }
 
-            function changePin() {
-                const oldPin = prompt("Code PIN actuel :");
-                if (oldPin !== localStorage.getItem(PIN_KEY)) {
-                    toast("Mauvais code", true);
-                    return;
-                }
-                const newPin = prompt("Nouveau code (chiffres, 1 à 10) :");
-                if (newPin && /^\d{1,10}$/.test(newPin)) {
-                    localStorage.setItem(PIN_KEY, newPin);
-                    toast("Code changé");
-                } else {
-                    toast("Code invalide", true);
-                }
-            }
-
             function exportData() {
+                vibrate(10);
                 const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement("a");
@@ -2550,6 +2568,7 @@
             }
 
             async function forceSync() {
+                vibrate(12);
                 document.getElementById("loading").style.display = "flex";
                 await bootstrap();
                 document.getElementById("loading").style.display = "none";
@@ -2558,6 +2577,7 @@
             }
 
             async function resetAll() {
+                vibrate(20);
                 if (!confirm("Vraiment tout effacer sur Supabase ? Cette action est irréversible.")) return;
                 if (!confirm("Confirmation finale : je supprime tout ?")) return;
                 setSync("syncing", "Effacement…");
@@ -2593,6 +2613,24 @@
             initLock();
             document.getElementById("modal-backdrop").addEventListener("click", (e) => {
                 if (e.target.id === "modal-backdrop") closeModal();
+            });
+
+            // Add vibration to FAB via its own click handler (already has onclick)
+            const fab = document.querySelector(".fab");
+            if (fab) {
+                const orig = fab.onclick;
+                fab.onclick = function (e) {
+                    vibrate(12);
+                    if (orig) orig.call(this, e);
+                };
+            }
+
+            // Also vibrate on setting rows clicks (any button-like setting rows)
+            document.addEventListener("click", function (e) {
+                const row = e.target.closest(".setting-row");
+                if (row && row.onclick && typeof row.onclick === "function") {
+                    // already handled by the specific onclick
+                }
             });
         </script>
     </body>
