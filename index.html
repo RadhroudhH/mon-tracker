@@ -31,6 +31,7 @@
                 --success: #6db89b;
                 --violet: #9b87be;
                 --amber: #d9954a;
+                --offset-color: #666;
                 --font-display: "Fraunces", Georgia, serif;
                 --font-body: "Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
                 --ease: cubic-bezier(0.22, 1, 0.36, 1);
@@ -858,6 +859,19 @@
             .list-item.neg .amt {
                 color: var(--text);
             }
+            .list-item.offset .amt {
+                color: var(--offset-color);
+            }
+            .list-item .offset-badge {
+                font-size: 9px;
+                background: var(--offset-color);
+                color: #fff;
+                padding: 1px 6px;
+                border-radius: 10px;
+                margin-left: 6px;
+                letter-spacing: 0.05em;
+                opacity: 0.7;
+            }
 
             .empty {
                 text-align: center;
@@ -1049,7 +1063,7 @@
             }
             .cat-grid {
                 display: grid;
-                grid-template-columns: repeat(5, 1fr);
+                grid-template-columns: repeat(6, 1fr);
                 gap: 8px;
             }
             .cat-btn {
@@ -1681,6 +1695,7 @@
                 { name: "Transport", glyph: "⇢", color: "#C4A85C" },
                 { name: "Autre", glyph: "◇", color: "#9B87BE" },
                 { name: "Epargne", glyph: "✦", color: "#6DB89B" },
+                { name: "Offset", glyph: "⟳", color: "#666" },
             ];
             const MONTH_NAMES = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
             const TAB_ORDER = ["dashboard", "depenses", "revenus", "carte"];
@@ -2178,12 +2193,16 @@
                 const now = new Date();
                 const monthName = MONTH_NAMES[now.getMonth()];
 
-                // --- Calculs des soldes ---
-                const totalRevenus = state.revenus.reduce((s, r) => s + r.amount, 0);
-                const totalDepenses = state.depenses.reduce((s, d) => s + d.amount, 0);
-                const soldeCash = totalRevenus - totalDepenses; // liquide
+                // --- Exclure les entrées Offset ---
+                const depensesSansOffset = state.depenses.filter((d) => d.category !== "Offset");
+                const revenusSansOffset = state.revenus.filter((r) => r.source !== "offset" && r.source !== "Offset");
 
-                // Soldes des cartes
+                // --- Calculs des soldes (sans offset) ---
+                const totalRevenus = revenusSansOffset.reduce((s, r) => s + r.amount, 0);
+                const totalDepenses = depensesSansOffset.reduce((s, d) => s + d.amount, 0);
+                const soldeCash = totalRevenus - totalDepenses;
+
+                // Soldes des cartes (inchangés, les cartes n'ont pas de notion d'offset)
                 const carteOps = state.carte;
                 const soldeCarte = (card) => {
                     const ops = carteOps.filter((c) => c.card === card);
@@ -2195,17 +2214,17 @@
                 const soldeTechno = soldeCarte("techno");
                 const soldeTotal = soldeCash + soldeD17 + soldeTechno;
 
-                // Dépenses du mois (hors épargne) pour sous-titre
-                const thisMonth = state.depenses.filter((d) => isThisMonth(d.date) && d.category !== "Epargne");
+                // Dépenses du mois (hors épargne et hors offset)
+                const thisMonth = depensesSansOffset.filter((d) => isThisMonth(d.date) && d.category !== "Epargne");
                 const monthTotal = thisMonth.reduce((s, d) => s + d.amount, 0);
                 const daysActive = new Set(thisMonth.map((d) => d.date)).size;
                 const avgDay = daysActive ? monthTotal / daysActive : 0;
 
-                // Épargne cumulée
-                const epargneTotal = state.depenses.filter((d) => d.category === "Epargne").reduce((s, d) => s + d.amount, 0);
+                // Épargne cumulée (hors offset)
+                const epargneTotal = depensesSansOffset.filter((d) => d.category === "Epargne").reduce((s, d) => s + d.amount, 0);
 
-                // Répartition sur l'ensemble des dépenses (hors épargne)
-                const allSpend = state.depenses.filter((d) => d.category !== "Epargne");
+                // Répartition (hors offset)
+                const allSpend = depensesSansOffset.filter((d) => d.category !== "Epargne");
                 const catTotals = {};
                 allSpend.forEach((d) => {
                     catTotals[d.category] = (catTotals[d.category] || 0) + d.amount;
@@ -2489,9 +2508,13 @@
                     dayDiv.className = "day-group";
 
                     let totalDay = 0;
-                    if (kind === "depense") totalDay = g.items.filter((i) => i.category !== "Epargne").reduce((s, i) => s + i.amount, 0);
-                    else if (kind === "revenu") totalDay = g.items.reduce((s, i) => s + i.amount, 0);
-                    else totalDay = g.items.filter((i) => i.type === "Achat").reduce((s, i) => s + i.total_dt, 0);
+                    if (kind === "depense") {
+                        totalDay = g.items.filter((i) => i.category !== "Epargne" && i.category !== "Offset").reduce((s, i) => s + i.amount, 0);
+                    } else if (kind === "revenu") {
+                        totalDay = g.items.filter((i) => i.source !== "offset" && i.source !== "Offset").reduce((s, i) => s + i.amount, 0);
+                    } else {
+                        totalDay = g.items.filter((i) => i.type === "Achat").reduce((s, i) => s + i.total_dt, 0);
+                    }
 
                     const label = document.createElement("div");
                     label.className = "day-label";
@@ -2504,7 +2527,14 @@
                         row.style.animationDelay = animDelay + "s";
                         animDelay += 0.03;
 
-                        let iconGlyph, iconColor, iconBg, desc, meta, amt, cls;
+                        let iconGlyph,
+                            iconColor,
+                            iconBg,
+                            desc,
+                            meta,
+                            amt,
+                            cls,
+                            offsetBadge = "";
                         if (kind === "depense") {
                             const info = catInfo(it.category);
                             iconGlyph = info.glyph;
@@ -2513,15 +2543,18 @@
                             desc = it.description || "—";
                             meta = it.category;
                             amt = fmt(it.amount);
-                            cls = it.category === "Epargne" ? "pos" : "neg";
+                            cls = it.category === "Epargne" ? "pos" : it.category === "Offset" ? "offset" : "neg";
+                            if (it.category === "Offset") offsetBadge = `<span class="offset-badge">Offset</span>`;
                         } else if (kind === "revenu") {
-                            iconGlyph = "+";
-                            iconColor = "#6DB89B";
-                            iconBg = "rgba(109, 184, 155, 0.15)";
+                            const isOffset = it.source === "offset" || it.source === "Offset";
+                            iconGlyph = isOffset ? "⟳" : "+";
+                            iconColor = isOffset ? "#666" : "#6DB89B";
+                            iconBg = isOffset ? "#66620" : "rgba(109, 184, 155, 0.15)";
                             desc = it.source || "—";
-                            meta = "Rentrée";
+                            meta = isOffset ? "Offset" : "Rentrée";
                             amt = fmt(it.amount);
-                            cls = "pos";
+                            cls = isOffset ? "offset" : "pos";
+                            if (isOffset) offsetBadge = `<span class="offset-badge">Offset</span>`;
                         } else {
                             const isAchat = it.type === "Achat";
                             iconGlyph = isAchat ? "−" : "+";
@@ -2540,7 +2573,7 @@
                         row.innerHTML = `
                             <div class="cat-icon" style="background:${iconBg};color:${iconColor}">${iconGlyph}</div>
                             <div class="body">
-                                <div class="desc">${escapeHtml(desc)}</div>
+                                <div class="desc">${escapeHtml(desc)} ${offsetBadge}</div>
                                 <div class="meta">${escapeHtml(meta)}</div>
                             </div>
                             <div class="amt">${amt}<span class="unit">DT</span></div>
@@ -2930,7 +2963,7 @@
                 };
             }
 
-            console.log("[init] Vibration activée et swipe prêt.");
+            console.log("[init] Vibration activée et swipe prêt. Catégorie Offset ajoutée.");
         </script>
     </body>
 </html>
