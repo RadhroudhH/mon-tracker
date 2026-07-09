@@ -253,19 +253,6 @@
                 opacity: 1;
             }
 
-            /* Swipe hint */
-            .swipe-hint {
-                text-align: center;
-                font-size: 10px;
-                color: var(--text-4);
-                letter-spacing: 0.2em;
-                padding: 4px 0 12px;
-                opacity: 0.4;
-                user-select: none;
-                pointer-events: none;
-                animation: fadeSlide 0.8s var(--ease) 0.3s backwards;
-            }
-
             /* Header */
             .header {
                 padding: 20px 22px 8px;
@@ -1494,36 +1481,26 @@
             // ============ FIXED PIN ============
             const FIXED_PIN = "14112411";
 
-            // ============ VIBRATION HELPER — STRONG & NOTICEABLE ============
+            // ============ VIBRATION HELPER ============
             function vibrate(ms) {
                 ms = ms || 35;
                 try {
                     if (navigator.vibrate) {
-                        // Use a pattern for more noticeable feedback on some actions
                         if (ms >= 50) {
                             navigator.vibrate([ms, 20, ms]);
                         } else {
                             navigator.vibrate(ms);
                         }
-                        console.log("[vibrate] " + ms + "ms");
-                    } else {
-                        console.log("[vibrate] not supported");
                     }
-                } catch (_) {
-                    console.log("[vibrate] error", _);
-                }
+                } catch (_) {}
             }
 
-            // Global click listener — vibrate on ANY button or clickable element
+            // Global click listener for vibration on all buttons
             document.addEventListener("click", function (e) {
                 const el = e.target.closest("button, .tab, .filter-chip, .list-item, .card-btn, .cat-btn, .setting-row, .fab, .icon-btn, .btn");
                 if (el) {
-                    // Don't double-vibrate if the element's own handler already did
-                    // We'll use a short vibration here as a catch-all
-                    const already = el.dataset.vibrated;
-                    if (!already) {
+                    if (!el.dataset.vibrated) {
                         vibrate(20);
-                        // Mark so we don't double vibrate
                         el.dataset.vibrated = "1";
                         setTimeout(() => {
                             delete el.dataset.vibrated;
@@ -1532,7 +1509,7 @@
                 }
             });
 
-            // ============ INITIAL DATA (from Excel v3_2) ============
+            // ============ INITIAL DATA ============
             const INITIAL_DATA = {
                 depenses: [
                     { date: "2026-05-10", description: "Globo", category: "Livraison", amount: 23.0 },
@@ -1721,9 +1698,6 @@
             }
 
             // ============ SWIPE GESTURE ============
-            let swipeStartX = 0;
-            let swipeStartY = 0;
-            let swipeActive = false;
             let swipeLeftEl = document.getElementById("swipe-left");
             let swipeRightEl = document.getElementById("swipe-right");
 
@@ -1742,7 +1716,6 @@
                         touchStartX = touch.clientX;
                         touchStartY = touch.clientY;
                         isSwiping = false;
-                        swipeActive = false;
                         hideSwipeArrows();
                     },
                     { passive: true },
@@ -1756,12 +1729,9 @@
                         const dx = touch.clientX - touchStartX;
                         const dy = touch.clientY - touchStartY;
 
-                        // Only activate swipe if horizontal movement > vertical and > threshold
                         if (Math.abs(dx) > 20 && Math.abs(dx) > Math.abs(dy) * 1.2) {
                             isSwiping = true;
-                            swipeActive = true;
                             e.preventDefault();
-                            // Show arrow indicators
                             if (dx < 0 && canSwipeRight()) {
                                 showSwipeArrow("right");
                             } else if (dx > 0 && canSwipeLeft()) {
@@ -1794,7 +1764,6 @@
                             }
                         }
                         isSwiping = false;
-                        swipeActive = false;
                     },
                     { passive: true },
                 );
@@ -2126,7 +2095,6 @@
                 document.getElementById("page-title").textContent = TAB_TITLES[name] || name;
                 document.getElementById("fab-wrap").style.display = name === "settings" ? "none" : "block";
                 render();
-                // Hide swipe arrows after navigation
                 hideSwipeArrows();
             }
 
@@ -2144,74 +2112,73 @@
                 const now = new Date();
                 const monthName = MONTH_NAMES[now.getMonth()];
 
+                // Dépenses du mois (hors épargne)
                 const thisMonth = state.depenses.filter((d) => isThisMonth(d.date) && d.category !== "Epargne");
                 const monthTotal = thisMonth.reduce((s, d) => s + d.amount, 0);
                 const daysActive = new Set(thisMonth.map((d) => d.date)).size;
                 const avgDay = daysActive ? monthTotal / daysActive : 0;
 
+                // Épargne cumulée (toutes dates)
                 const epargneTotal = state.depenses.filter((d) => d.category === "Epargne").reduce((s, d) => s + d.amount, 0);
 
+                // Solde carte
                 const cartePlus = state.carte.filter((c) => c.type === "Rechargement" || c.type === "Remboursement").reduce((s, c) => s + c.total_dt, 0);
                 const carteMinus = state.carte.filter((c) => c.type === "Achat").reduce((s, c) => s + c.total_dt, 0);
                 const carteSolde = cartePlus - carteMinus;
 
+                // ---- RÉPARTITION SUR L'ENSEMBLE DES DÉPENSES (hors épargne) ----
+                const allSpend = state.depenses.filter((d) => d.category !== "Epargne");
                 const catTotals = {};
-                thisMonth.forEach((d) => {
+                allSpend.forEach((d) => {
                     catTotals[d.category] = (catTotals[d.category] || 0) + d.amount;
                 });
                 const catEntries = Object.entries(catTotals).sort((a, b) => b[1] - a[1]);
 
                 const p = document.getElementById("page-dashboard");
                 p.innerHTML = `
-            <div class="hero-card">
-              <div class="hero-label">Dépenses · ${monthName}</div>
-              <div class="hero-value"><span id="hero-total">0,00</span><span class="unit">DT</span></div>
-              <div class="hero-sub">
-                ${fmt(avgDay)} DT/jour <span class="sep">·</span> ${daysActive} jour${daysActive > 1 ? "s" : ""}
-              </div>
-            </div>
+                    <div class="hero-card">
+                        <div class="hero-label">Dépensé en ${monthName}</div>
+                        <div class="hero-value"><span id="hero-total">0,00</span><span class="unit">DT</span></div>
+                        <div class="hero-sub">
+                            ${fmt(avgDay)} DT/jour <span class="sep">·</span> ${daysActive} jour${daysActive > 1 ? "s" : ""}
+                        </div>
+                    </div>
 
-            <div class="stat-grid">
-              <div class="stat-card epargne">
-                <div class="label">Épargne cumulée</div>
-                <div class="value"><span id="stat-epargne">0,00</span><span class="unit">DT</span></div>
-              </div>
-              <div class="stat-card carte">
-                <div class="label">Solde carte</div>
-                <div class="value"><span id="stat-carte">0,00</span><span class="unit">DT</span></div>
-              </div>
-            </div>
+                    <div class="stat-grid">
+                        <div class="stat-card epargne">
+                            <div class="label">Épargne cumulée</div>
+                            <div class="value"><span id="stat-epargne">0,00</span><span class="unit">DT</span></div>
+                        </div>
+                        <div class="stat-card carte">
+                            <div class="label">Solde carte</div>
+                            <div class="value"><span id="stat-carte">0,00</span><span class="unit">DT</span></div>
+                        </div>
+                    </div>
 
-            ${
-                catEntries.length
-                    ? `
-              <div class="section-title">Répartition</div>
-              <div class="repart">
-                <div class="repart-bar" id="repart-bar"></div>
-                <div class="repart-list" id="repart-list"></div>
-              </div>
-            `
-                    : ""
-            }
+                    <div class="section-title">Répartition (toutes les dépenses)</div>
+                    <div class="repart">
+                        <div class="repart-bar" id="repart-bar"></div>
+                        <div class="repart-list" id="repart-list"></div>
+                    </div>
 
-            <div class="section-title">Objectif six mois</div>
-            <div class="goal-card">
-              <div class="goal-header">
-                <div class="goal-title">Enveloppe personnelle</div>
-                <div class="goal-target">Cible 1 200 DT</div>
-              </div>
-              <div class="goal-progress-wrap">
-                <div class="goal-progress" id="goal-bar"></div>
-              </div>
-              <div class="goal-numbers">
-                <div class="goal-current"><span id="goal-val">0</span><span style="font-size:14px;color:var(--text-3);margin-left:4px">DT</span></div>
-                <div class="goal-remain" id="goal-remain">— restants</div>
-              </div>
-            </div>
+                    <div class="section-title">Objectif six mois</div>
+                    <div class="goal-card">
+                        <div class="goal-header">
+                            <div class="goal-title">Enveloppe personnelle</div>
+                            <div class="goal-target">Cible 1 200 DT</div>
+                        </div>
+                        <div class="goal-progress-wrap">
+                            <div class="goal-progress" id="goal-bar"></div>
+                        </div>
+                        <div class="goal-numbers">
+                            <div class="goal-current"><span id="goal-val">0</span><span style="font-size:14px;color:var(--text-3);margin-left:4px">DT</span></div>
+                            <div class="goal-remain" id="goal-remain">— restants</div>
+                        </div>
+                    </div>
 
-            <div class="section-title">Ce que je remarque</div>
-            <div id="insights"></div>
-          `;
+                    <div class="section-title">Ce que je remarque</div>
+                    <div id="insights"></div>
+                `;
 
                 animateNumber(document.getElementById("hero-total"), 0, monthTotal);
                 animateNumber(document.getElementById("stat-epargne"), 0, epargneTotal);
@@ -2224,14 +2191,16 @@
                 bar.style.transform = `scaleX(${goalPct})`;
                 document.getElementById("goal-remain").textContent = `${(goalPct * 100).toFixed(0)}% · reste ${fmt(Math.max(0, 1200 - epargneTotal))} DT`;
 
+                // Repartition
                 if (catEntries.length) {
                     const barEl = document.getElementById("repart-bar");
                     const listEl = document.getElementById("repart-list");
                     barEl.innerHTML = "";
                     listEl.innerHTML = "";
+                    const total = catEntries.reduce((s, e) => s + e[1], 0);
                     catEntries.forEach(([cat, amt], i) => {
                         const info = catInfo(cat);
-                        const pct = (amt / monthTotal) * 100;
+                        const pct = (amt / total) * 100;
                         const seg = document.createElement("div");
                         seg.className = "seg";
                         seg.style.width = pct + "%";
@@ -2246,11 +2215,15 @@
                             <div class="name">${cat}</div>
                             <div class="amt">${fmt(amt)} <span style="color:var(--text-3);font-weight:400">DT</span></div>
                             <div class="pct">${pct.toFixed(0)}%</div>
-                          `;
+                        `;
                         listEl.appendChild(row);
                     });
+                } else {
+                    // Fallback si aucune dépense
+                    document.getElementById("repart-bar").innerHTML = '<div style="color:var(--text-4);padding:10px 0;text-align:center;font-size:12px;">Aucune dépense enregistrée</div>';
                 }
 
+                // Insights (basés sur les données du mois)
                 const ins = document.getElementById("insights");
                 ins.innerHTML = "";
                 const insights = [];
@@ -2290,9 +2263,9 @@
                 const filtered = currentFilter === "Tous" ? state.depenses : state.depenses.filter((d) => d.category === currentFilter);
 
                 p.innerHTML = `
-            <div class="filter-scroll dep-filters"></div>
-            <div class="dep-list"></div>
-          `;
+                    <div class="filter-scroll dep-filters"></div>
+                    <div class="dep-list"></div>
+                `;
 
                 const fEl = p.querySelector(".dep-filters");
                 chips.forEach((c) => {
@@ -2333,39 +2306,39 @@
                 const valueColor = isTechno ? "var(--violet)" : "var(--success)";
 
                 p.innerHTML = `
-            <div class="card-selector">
-              <button class="card-btn ${isTechno ? "active" : ""}" data-card="techno" aria-label="Carte Zitouna Technologique">
-                <img src="images/techno.png" alt="Zitouna Technologique" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-                <div class="card-fallback" style="display:none">Zitouna<br>Technologique</div>
-                <div class="card-badge">Techno</div>
-              </button>
-              <button class="card-btn ${!isTechno ? "active" : ""}" data-card="d17" aria-label="Carte D17">
-                <img src="images/d17.png" alt="D17" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-                <div class="card-fallback" style="display:none">La Poste<br>D17</div>
-                <div class="card-badge">D17</div>
-              </button>
-            </div>
+                    <div class="card-selector">
+                        <button class="card-btn ${isTechno ? "active" : ""}" data-card="techno" aria-label="Carte Zitouna Technologique">
+                            <img src="images/techno.png" alt="Zitouna Technologique" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+                            <div class="card-fallback" style="display:none">Zitouna<br>Technologique</div>
+                            <div class="card-badge">Techno</div>
+                        </button>
+                        <button class="card-btn ${!isTechno ? "active" : ""}" data-card="d17" aria-label="Carte D17">
+                            <img src="images/d17.png" alt="D17" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+                            <div class="card-fallback" style="display:none">La Poste<br>D17</div>
+                            <div class="card-badge">D17</div>
+                        </button>
+                    </div>
 
-            <div class="carte-hero" style="background:${gradient};border-color:${border}">
-              <div class="hero-label">${cardName}</div>
-              <div class="hero-value" style="color:${valueColor}"><span class="carte-solde-val">0,00</span><span class="unit">DT</span></div>
-              <div class="hero-sub">${ops.length} opération${ops.length > 1 ? "s" : ""}</div>
-              ${
-                  isTechno
-                      ? `
-                <div class="plafond-bar-wrap">
-                  <div class="plafond-label">
-                    <span>Plafond annuel devises</span>
-                    <span><span class="plafond-used">0</span> / 1 000 DT</span>
-                  </div>
-                  <div class="plafond-bar"><div class="plafond-fill"></div></div>
-                </div>
-              `
-                      : ""
-              }
-            </div>
-            <div class="carte-list"></div>
-          `;
+                    <div class="carte-hero" style="background:${gradient};border-color:${border}">
+                        <div class="hero-label">${cardName}</div>
+                        <div class="hero-value" style="color:${valueColor}"><span class="carte-solde-val">0,00</span><span class="unit">DT</span></div>
+                        <div class="hero-sub">${ops.length} opération${ops.length > 1 ? "s" : ""}</div>
+                        ${
+                            isTechno
+                                ? `
+                            <div class="plafond-bar-wrap">
+                                <div class="plafond-label">
+                                    <span>Plafond annuel devises</span>
+                                    <span><span class="plafond-used">0</span> / 1 000 DT</span>
+                                </div>
+                                <div class="plafond-bar"><div class="plafond-fill"></div></div>
+                            </div>
+                        `
+                                : ""
+                        }
+                    </div>
+                    <div class="carte-list"></div>
+                `;
 
                 p.querySelectorAll(".card-btn").forEach((btn) => {
                     btn.onclick = () => {
@@ -2454,11 +2427,11 @@
                         row.innerHTML = `
                             <div class="cat-icon" style="background:${iconBg};color:${iconColor}">${iconGlyph}</div>
                             <div class="body">
-                              <div class="desc">${escapeHtml(desc)}</div>
-                              <div class="meta">${escapeHtml(meta)}</div>
+                                <div class="desc">${escapeHtml(desc)}</div>
+                                <div class="meta">${escapeHtml(meta)}</div>
                             </div>
                             <div class="amt">${amt}<span class="unit">DT</span></div>
-                          `;
+                        `;
                         row.onclick = () => {
                             vibrate(35);
                             openEditModal(kind, it.id);
@@ -2679,76 +2652,76 @@
             function renderSettings() {
                 const p = document.getElementById("page-settings");
                 p.innerHTML = `
-            <div class="section-eyebrow">Taux de change · Zitouna</div>
-            <div class="setting-row">
-              <div class="info">
-                <div class="info-label">Dollars (USD)</div>
-                <div class="info-sub">Taux vente actuel</div>
-              </div>
-              <input type="number" step="0.0001" id="s-usd" value="${state.taux.usd_vente}">
-            </div>
-            <div class="setting-row">
-              <div class="info">
-                <div class="info-label">Euros (EUR)</div>
-                <div class="info-sub">Taux vente actuel</div>
-              </div>
-              <input type="number" step="0.0001" id="s-eur" value="${state.taux.eur_vente}">
-            </div>
-            <div class="setting-row">
-              <div class="info">
-                <div class="info-label">Source officielle</div>
-                <div class="info-sub">Mets à jour une fois par semaine</div>
-              </div>
-              <a href="https://www.dinartunisien.com/fr/banque/zitouna" target="_blank" style="color:var(--accent);text-decoration:none;font-size:13px">Ouvrir ↗</a>
-            </div>
+                    <div class="section-eyebrow">Taux de change · Zitouna</div>
+                    <div class="setting-row">
+                        <div class="info">
+                            <div class="info-label">Dollars (USD)</div>
+                            <div class="info-sub">Taux vente actuel</div>
+                        </div>
+                        <input type="number" step="0.0001" id="s-usd" value="${state.taux.usd_vente}">
+                    </div>
+                    <div class="setting-row">
+                        <div class="info">
+                            <div class="info-label">Euros (EUR)</div>
+                            <div class="info-sub">Taux vente actuel</div>
+                        </div>
+                        <input type="number" step="0.0001" id="s-eur" value="${state.taux.eur_vente}">
+                    </div>
+                    <div class="setting-row">
+                        <div class="info">
+                            <div class="info-label">Source officielle</div>
+                            <div class="info-sub">Mets à jour une fois par semaine</div>
+                        </div>
+                        <a href="https://www.dinartunisien.com/fr/banque/zitouna" target="_blank" style="color:var(--accent);text-decoration:none;font-size:13px">Ouvrir ↗</a>
+                    </div>
 
-            <div class="section-eyebrow">Sécurité</div>
-            <div class="setting-row" style="opacity:0.6;cursor:default;pointer-events:none">
-              <div class="info">
-                <div class="info-label">Code PIN</div>
-                <div class="info-sub">Fixé · 14112411</div>
-              </div>
-              <span style="color:var(--text-4);font-size:12px;letter-spacing:0.05em">🔒</span>
-            </div>
+                    <div class="section-eyebrow">Sécurité</div>
+                    <div class="setting-row" style="opacity:0.6;cursor:default;pointer-events:none">
+                        <div class="info">
+                            <div class="info-label">Code PIN</div>
+                            <div class="info-sub">Fixé · 14112411</div>
+                        </div>
+                        <span style="color:var(--text-4);font-size:12px;letter-spacing:0.05em">🔒</span>
+                    </div>
 
-            <div class="section-eyebrow">Sauvegardes</div>
-            <button class="setting-row" onclick="exportData()">
-              <div class="info">
-                <div class="info-label">Exporter en JSON</div>
-                <div class="info-sub">Télécharger un fichier de sauvegarde</div>
-              </div>
-              <span class="arrow" style="color:var(--accent)">↓</span>
-            </button>
-            <button class="setting-row" onclick="forceSync()">
-              <div class="info">
-                <div class="info-label">Forcer la synchronisation</div>
-                <div class="info-sub">Recharger depuis Supabase</div>
-              </div>
-              <span class="arrow" style="color:var(--accent)">↻</span>
-            </button>
+                    <div class="section-eyebrow">Sauvegardes</div>
+                    <button class="setting-row" onclick="exportData()">
+                        <div class="info">
+                            <div class="info-label">Exporter en JSON</div>
+                            <div class="info-sub">Télécharger un fichier de sauvegarde</div>
+                        </div>
+                        <span class="arrow" style="color:var(--accent)">↓</span>
+                    </button>
+                    <button class="setting-row" onclick="forceSync()">
+                        <div class="info">
+                            <div class="info-label">Forcer la synchronisation</div>
+                            <div class="info-sub">Recharger depuis Supabase</div>
+                        </div>
+                        <span class="arrow" style="color:var(--accent)">↻</span>
+                    </button>
 
-            <div class="section-eyebrow">Réinjection depuis Excel</div>
-            <button class="setting-row" onclick="reMigrate()" style="border-color:rgba(196, 168, 92, 0.3)">
-              <div class="info">
-                <div class="info-label" style="color:var(--accent)">Re-migrer depuis le fichier Excel</div>
-                <div class="info-sub">Écrase tout et réinjecte les 60 dép. / 15 rev. / 12 carte</div>
-              </div>
-              <span class="arrow" style="color:var(--accent)">↻</span>
-            </button>
+                    <div class="section-eyebrow">Réinjection depuis Excel</div>
+                    <button class="setting-row" onclick="reMigrate()" style="border-color:rgba(196, 168, 92, 0.3)">
+                        <div class="info">
+                            <div class="info-label" style="color:var(--accent)">Re-migrer depuis le fichier Excel</div>
+                            <div class="info-sub">Écrase tout et réinjecte les 60 dép. / 15 rev. / 12 carte</div>
+                        </div>
+                        <span class="arrow" style="color:var(--accent)">↻</span>
+                    </button>
 
-            <div class="section-eyebrow">Zone rouge</div>
-            <button class="setting-row" onclick="resetAll()" style="border-color:rgba(217, 117, 88, 0.3)">
-              <div class="info">
-                <div class="info-label" style="color:var(--danger)">Tout effacer sur Supabase</div>
-                <div class="info-sub">Action irréversible</div>
-              </div>
-              <span class="arrow" style="color:var(--danger)">×</span>
-            </button>
+                    <div class="section-eyebrow">Zone rouge</div>
+                    <button class="setting-row" onclick="resetAll()" style="border-color:rgba(217, 117, 88, 0.3)">
+                        <div class="info">
+                            <div class="info-label" style="color:var(--danger)">Tout effacer sur Supabase</div>
+                            <div class="info-sub">Action irréversible</div>
+                        </div>
+                        <span class="arrow" style="color:var(--danger)">×</span>
+                    </button>
 
-            <div style="text-align:center;padding:40px 0 20px;font-size:11px;color:var(--text-4);letter-spacing:0.15em;">
-              Carnet · v1.0
-            </div>
-          `;
+                    <div style="text-align:center;padding:40px 0 20px;font-size:11px;color:var(--text-4);letter-spacing:0.15em;">
+                        Carnet · v1.0
+                    </div>
+                `;
 
                 const usdIn = document.getElementById("s-usd");
                 const eurIn = document.getElementById("s-eur");
@@ -2826,7 +2799,7 @@
                 if (e.target.id === "modal-backdrop") closeModal();
             });
 
-            // FAB vibration (already has onclick, we wrap it)
+            // FAB vibration
             const fab = document.querySelector(".fab");
             if (fab) {
                 const orig = fab.onclick;
@@ -2836,7 +2809,6 @@
                 };
             }
 
-            // Settings button vibration
             const settingsBtn = document.getElementById("settings-btn");
             if (settingsBtn) {
                 const orig = settingsBtn.onclick;
@@ -2846,7 +2818,7 @@
                 };
             }
 
-            console.log("[init] Vibration enabled. Try tapping any button — you should feel a buzz!");
+            console.log("[init] Vibration activée et swipe prêt.");
         </script>
     </body>
 </html>
