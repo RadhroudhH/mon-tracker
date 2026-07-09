@@ -1490,8 +1490,46 @@
             const SUPABASE_KEY = "sb_publishable_MUndTwbVREQR4eO6_PAj8Q_MkOz15_t";
             const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-            // ============ FIXED PIN ============
-            const FIXED_PIN = "14112411";
+            // ============ FIXED PIN (PBKDF2-SHA256 hashed) ============
+            // Le PIN n'est jamais stocké en clair dans le code.
+            // Il est vérifié via PBKDF2 avec 100 000 itérations.
+            const PIN_SALT = "cBJ5IEfcsMlA3GzJE7V0Dw==";
+            const PIN_HASH = "r6ePZZPG/JetOuy+ozBMiVXWSqM5XZ37z9iE7rylA3g=";
+            const PIN_ITERATIONS = 100000;
+
+            // Fonction de vérification PBKDF2 utilisant Web Crypto API (natif navigateur)
+            async function verifyPin(inputPin) {
+                try {
+                    const encoder = new TextEncoder();
+                    const saltBytes = Uint8Array.from(atob(PIN_SALT), (c) => c.charCodeAt(0));
+                    const expectedHashBytes = Uint8Array.from(atob(PIN_HASH), (c) => c.charCodeAt(0));
+
+                    const keyMaterial = await crypto.subtle.importKey("raw", encoder.encode(inputPin), { name: "PBKDF2" }, false, ["deriveBits"]);
+
+                    const derivedBits = await crypto.subtle.deriveBits(
+                        {
+                            name: "PBKDF2",
+                            salt: saltBytes,
+                            iterations: PIN_ITERATIONS,
+                            hash: "SHA-256",
+                        },
+                        keyMaterial,
+                        256,
+                    );
+
+                    // Comparaison en temps constant (anti-timing attack)
+                    const derived = new Uint8Array(derivedBits);
+                    if (derived.length !== expectedHashBytes.length) return false;
+                    let diff = 0;
+                    for (let i = 0; i < derived.length; i++) {
+                        diff |= derived[i] ^ expectedHashBytes[i];
+                    }
+                    return diff === 0;
+                } catch (e) {
+                    console.error("Erreur de vérification PIN:", e);
+                    return false;
+                }
+            }
 
             // ============ VIBRATION ============
             function vibrate(ms) {
@@ -1642,23 +1680,38 @@
             // ============ PIN LOCK ============
             function initLock() {
                 document.querySelectorAll(".numpad button").forEach((btn) => {
-                    btn.addEventListener("click", () => {
+                    btn.addEventListener("click", async () => {
                         vibrate(35);
-                        handlePin(btn.dataset.k);
+                        await handlePin(btn.dataset.k);
                     });
                 });
                 renderPin();
             }
 
-            function handlePin(k) {
+            let verifyingPin = false;
+
+            async function handlePin(k) {
                 const disp = document.getElementById("pin-display");
                 disp.classList.remove("error");
+
                 if (k === "del") {
+                    if (verifyingPin) return;
                     pinInput = pinInput.slice(0, -1);
                     vibrate(30);
                 } else if (k === "ok") {
+                    if (verifyingPin) return;
                     vibrate(40);
-                    if (pinInput === FIXED_PIN) {
+                    verifyingPin = true;
+
+                    // Léger feedback visuel pendant la vérification (~100 ms)
+                    disp.style.opacity = "0.5";
+
+                    const isValid = await verifyPin(pinInput);
+
+                    disp.style.opacity = "1";
+                    verifyingPin = false;
+
+                    if (isValid) {
                         unlock();
                     } else {
                         disp.classList.add("error");
@@ -1670,6 +1723,7 @@
                     }
                     return;
                 } else if (pinInput.length < 10) {
+                    if (verifyingPin) return;
                     pinInput += k;
                     vibrate(30);
                 }
@@ -2584,7 +2638,7 @@
                     <div class="setting-row" style="opacity:0.6;cursor:default;pointer-events:none">
                         <div class="info">
                             <div class="info-label">Code PIN</div>
-                            <div class="info-sub">Fixé · 14112411</div>
+                            <div class="info-sub">Protégé par PBKDF2-SHA256 · 100 000 itérations</div>
                         </div>
                         <span style="color:var(--text-4);font-size:12px;letter-spacing:0.05em">🔒</span>
                     </div>
