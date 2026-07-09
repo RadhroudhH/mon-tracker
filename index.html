@@ -59,6 +59,7 @@
                 min-height: 100vh;
                 background: radial-gradient(1200px 600px at 50% -300px, rgba(196, 168, 92, 0.06), transparent 60%), var(--bg);
                 overscroll-behavior: none;
+                touch-action: pan-y;
             }
             button,
             input,
@@ -71,6 +72,7 @@
                 cursor: pointer;
                 border: none;
                 background: none;
+                touch-action: manipulation;
             }
 
             /* ============ LOCK SCREEN ============ */
@@ -244,10 +246,24 @@
                 display: none;
                 opacity: 0;
                 transition: opacity 0.4s var(--ease);
+                touch-action: pan-y;
             }
             #app.show {
                 display: block;
                 opacity: 1;
+            }
+
+            /* Swipe hint */
+            .swipe-hint {
+                text-align: center;
+                font-size: 10px;
+                color: var(--text-4);
+                letter-spacing: 0.2em;
+                padding: 4px 0 12px;
+                opacity: 0.4;
+                user-select: none;
+                pointer-events: none;
+                animation: fadeSlide 0.8s var(--ease) 0.3s backwards;
             }
 
             /* Header */
@@ -335,7 +351,7 @@
                 display: flex;
                 padding: 0 18px;
                 gap: 4px;
-                margin-bottom: 22px;
+                margin-bottom: 10px;
                 overflow-x: auto;
                 scrollbar-width: none;
             }
@@ -353,6 +369,7 @@
                 transition: all 0.25s var(--ease);
                 position: relative;
                 touch-action: manipulation;
+                flex-shrink: 0;
             }
             .tab.active {
                 color: var(--text);
@@ -378,10 +395,16 @@
             }
 
             /* Pages */
+            .page-container {
+                position: relative;
+                overflow: hidden;
+                touch-action: pan-y;
+            }
             .page {
                 display: none;
                 padding: 0 18px;
                 animation: pageIn 0.4s var(--ease);
+                touch-action: pan-y;
             }
             .page.active {
                 display: block;
@@ -1263,6 +1286,39 @@
                 opacity: 0.5;
                 user-select: none;
             }
+
+            /* ============ SWIPE INDICATOR ============ */
+            .swipe-indicator {
+                display: none;
+                position: fixed;
+                top: 50%;
+                transform: translateY(-50%);
+                font-size: 28px;
+                color: var(--text-4);
+                opacity: 0;
+                pointer-events: none;
+                z-index: 10;
+                transition: opacity 0.25s var(--ease);
+                padding: 12px;
+                background: rgba(0, 0, 0, 0.3);
+                border-radius: 50%;
+                backdrop-filter: blur(4px);
+                border: 1px solid var(--border);
+            }
+            .swipe-indicator.show {
+                opacity: 0.6;
+            }
+            .swipe-indicator.left {
+                left: 12px;
+            }
+            .swipe-indicator.right {
+                right: 12px;
+            }
+            @media (pointer: coarse) {
+                .swipe-indicator {
+                    display: block;
+                }
+            }
         </style>
     </head>
     <body>
@@ -1302,7 +1358,7 @@
                         <span class="dot"></span>
                         <span id="sync-text">Sync</span>
                     </div>
-                    <button class="icon-btn" onclick="showPage('settings')" aria-label="Réglages">
+                    <button class="icon-btn" onclick="showPage('settings')" aria-label="Réglages" id="settings-btn">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <circle cx="12" cy="12" r="3" />
                             <path d="M12 1v6m0 10v6m11-11h-6M7 12H1m18.4-7.4-4.2 4.2M8.8 15.2l-4.2 4.2m0-14.8 4.2 4.2m10.6 6.4 4.2 4.2" />
@@ -1311,30 +1367,36 @@
                 </div>
             </div>
 
-            <div class="tabs">
+            <div class="tabs" id="tabs-container">
                 <button class="tab active" data-page="dashboard">Aperçu</button>
                 <button class="tab" data-page="depenses">Dépenses</button>
                 <button class="tab" data-page="revenus">Revenus</button>
                 <button class="tab" data-page="carte">Carte</button>
             </div>
 
-            <!-- Dashboard -->
-            <div class="page active" id="page-dashboard"></div>
+            <!-- Swipe arrows (visible on touch devices) -->
+            <div class="swipe-indicator left" id="swipe-left">‹</div>
+            <div class="swipe-indicator right" id="swipe-right">›</div>
 
-            <!-- Depenses -->
-            <div class="page" id="page-depenses"></div>
+            <div class="page-container" id="page-container">
+                <!-- Dashboard -->
+                <div class="page active" id="page-dashboard"></div>
 
-            <!-- Revenus -->
-            <div class="page" id="page-revenus"></div>
+                <!-- Depenses -->
+                <div class="page" id="page-depenses"></div>
 
-            <!-- Carte -->
-            <div class="page" id="page-carte"></div>
+                <!-- Revenus -->
+                <div class="page" id="page-revenus"></div>
 
-            <!-- Settings -->
-            <div class="page" id="page-settings"></div>
+                <!-- Carte -->
+                <div class="page" id="page-carte"></div>
+
+                <!-- Settings -->
+                <div class="page" id="page-settings"></div>
+            </div>
 
             <div class="fab-wrap" id="fab-wrap">
-                <button class="fab" onclick="openAddModal()" aria-label="Ajouter une entrée">
+                <button class="fab" onclick="openAddModal()" aria-label="Ajouter une entrée" id="fab-btn">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg>
                 </button>
             </div>
@@ -1432,15 +1494,43 @@
             // ============ FIXED PIN ============
             const FIXED_PIN = "14112411";
 
-            // ============ VIBRATION HELPER ============
+            // ============ VIBRATION HELPER — STRONG & NOTICEABLE ============
             function vibrate(ms) {
-                ms = ms || 10;
+                ms = ms || 35;
                 try {
-                    if (navigator.vibrate) navigator.vibrate(ms);
+                    if (navigator.vibrate) {
+                        // Use a pattern for more noticeable feedback on some actions
+                        if (ms >= 50) {
+                            navigator.vibrate([ms, 20, ms]);
+                        } else {
+                            navigator.vibrate(ms);
+                        }
+                        console.log("[vibrate] " + ms + "ms");
+                    } else {
+                        console.log("[vibrate] not supported");
+                    }
                 } catch (_) {
-                    /* ignore */
+                    console.log("[vibrate] error", _);
                 }
             }
+
+            // Global click listener — vibrate on ANY button or clickable element
+            document.addEventListener("click", function (e) {
+                const el = e.target.closest("button, .tab, .filter-chip, .list-item, .card-btn, .cat-btn, .setting-row, .fab, .icon-btn, .btn");
+                if (el) {
+                    // Don't double-vibrate if the element's own handler already did
+                    // We'll use a short vibration here as a catch-all
+                    const already = el.dataset.vibrated;
+                    if (!already) {
+                        vibrate(20);
+                        // Mark so we don't double vibrate
+                        el.dataset.vibrated = "1";
+                        setTimeout(() => {
+                            delete el.dataset.vibrated;
+                        }, 100);
+                    }
+                }
+            });
 
             // ============ INITIAL DATA (from Excel v3_2) ============
             const INITIAL_DATA = {
@@ -1550,6 +1640,8 @@
                 { name: "Epargne", glyph: "✦", color: "#6DB89B" },
             ];
             const MONTH_NAMES = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
+            const TAB_ORDER = ["dashboard", "depenses", "revenus", "carte"];
+            const TAB_TITLES = { dashboard: "Aperçu", depenses: "Dépenses", revenus: "Revenus", carte: "Carte", settings: "Réglages" };
 
             // ============ STATE ============
             let state = { depenses: [], revenus: [], carte: [], taux: { usd_vente: 3.025, eur_vente: 3.426 }, activeCard: "techno" };
@@ -1570,7 +1662,7 @@
             function initLock() {
                 document.querySelectorAll(".numpad button").forEach((btn) => {
                     btn.addEventListener("click", () => {
-                        vibrate(8);
+                        vibrate(35);
                         handlePin(btn.dataset.k);
                     });
                 });
@@ -1582,12 +1674,14 @@
                 disp.classList.remove("error");
                 if (k === "del") {
                     pinInput = pinInput.slice(0, -1);
+                    vibrate(30);
                 } else if (k === "ok") {
+                    vibrate(40);
                     if (pinInput === FIXED_PIN) {
                         unlock();
                     } else {
                         disp.classList.add("error");
-                        vibrate(30);
+                        vibrate(60);
                         setTimeout(() => {
                             pinInput = "";
                             renderPin();
@@ -1596,6 +1690,7 @@
                     return;
                 } else if (pinInput.length < 10) {
                     pinInput += k;
+                    vibrate(30);
                 }
                 renderPin();
             }
@@ -1622,6 +1717,120 @@
                 document.getElementById("loading").style.display = "none";
                 document.getElementById("app").classList.add("show");
                 render();
+                initSwipe();
+            }
+
+            // ============ SWIPE GESTURE ============
+            let swipeStartX = 0;
+            let swipeStartY = 0;
+            let swipeActive = false;
+            let swipeLeftEl = document.getElementById("swipe-left");
+            let swipeRightEl = document.getElementById("swipe-right");
+
+            function initSwipe() {
+                const container = document.getElementById("page-container");
+                if (!container) return;
+
+                let touchStartX = 0,
+                    touchStartY = 0;
+                let isSwiping = false;
+
+                container.addEventListener(
+                    "touchstart",
+                    function (e) {
+                        const touch = e.touches[0];
+                        touchStartX = touch.clientX;
+                        touchStartY = touch.clientY;
+                        isSwiping = false;
+                        swipeActive = false;
+                        hideSwipeArrows();
+                    },
+                    { passive: true },
+                );
+
+                container.addEventListener(
+                    "touchmove",
+                    function (e) {
+                        if (e.touches.length !== 1) return;
+                        const touch = e.touches[0];
+                        const dx = touch.clientX - touchStartX;
+                        const dy = touch.clientY - touchStartY;
+
+                        // Only activate swipe if horizontal movement > vertical and > threshold
+                        if (Math.abs(dx) > 20 && Math.abs(dx) > Math.abs(dy) * 1.2) {
+                            isSwiping = true;
+                            swipeActive = true;
+                            e.preventDefault();
+                            // Show arrow indicators
+                            if (dx < 0 && canSwipeRight()) {
+                                showSwipeArrow("right");
+                            } else if (dx > 0 && canSwipeLeft()) {
+                                showSwipeArrow("left");
+                            } else {
+                                hideSwipeArrows();
+                            }
+                        }
+                    },
+                    { passive: false },
+                );
+
+                container.addEventListener(
+                    "touchend",
+                    function (e) {
+                        if (!isSwiping) return;
+                        const touch = e.changedTouches[0];
+                        const dx = touch.clientX - touchStartX;
+                        const dy = touch.clientY - touchStartY;
+
+                        hideSwipeArrows();
+
+                        if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.2) {
+                            if (dx < 0 && canSwipeRight()) {
+                                vibrate(30);
+                                navigateTab(1);
+                            } else if (dx > 0 && canSwipeLeft()) {
+                                vibrate(30);
+                                navigateTab(-1);
+                            }
+                        }
+                        isSwiping = false;
+                        swipeActive = false;
+                    },
+                    { passive: true },
+                );
+            }
+
+            function canSwipeLeft() {
+                const idx = TAB_ORDER.indexOf(currentPage);
+                return idx > 0;
+            }
+
+            function canSwipeRight() {
+                const idx = TAB_ORDER.indexOf(currentPage);
+                return idx < TAB_ORDER.length - 1;
+            }
+
+            function showSwipeArrow(dir) {
+                if (dir === "left") {
+                    swipeLeftEl.classList.add("show");
+                    swipeRightEl.classList.remove("show");
+                } else {
+                    swipeRightEl.classList.add("show");
+                    swipeLeftEl.classList.remove("show");
+                }
+            }
+
+            function hideSwipeArrows() {
+                swipeLeftEl.classList.remove("show");
+                swipeRightEl.classList.remove("show");
+            }
+
+            function navigateTab(delta) {
+                const idx = TAB_ORDER.indexOf(currentPage);
+                const newIdx = Math.max(0, Math.min(TAB_ORDER.length - 1, idx + delta));
+                if (newIdx !== idx) {
+                    showPage(TAB_ORDER[newIdx]);
+                }
             }
 
             // ============ SUPABASE SYNC ============
@@ -1902,20 +2111,23 @@
             // ============ NAVIGATION ============
             document.querySelectorAll(".tab").forEach((t) => {
                 t.addEventListener("click", () => {
-                    vibrate(6);
+                    vibrate(35);
                     showPage(t.dataset.page);
                 });
             });
 
             function showPage(name) {
+                if (name === currentPage) return;
                 currentPage = name;
                 document.querySelectorAll(".page").forEach((p) => p.classList.remove("active"));
-                document.getElementById("page-" + name).classList.add("active");
+                const pageEl = document.getElementById("page-" + name);
+                if (pageEl) pageEl.classList.add("active");
                 document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("active", t.dataset.page === name));
-                const titles = { dashboard: "Aperçu", depenses: "Dépenses", revenus: "Revenus", carte: "Carte", settings: "Réglages" };
-                document.getElementById("page-title").textContent = titles[name];
+                document.getElementById("page-title").textContent = TAB_TITLES[name] || name;
                 document.getElementById("fab-wrap").style.display = name === "settings" ? "none" : "block";
                 render();
+                // Hide swipe arrows after navigation
+                hideSwipeArrows();
             }
 
             // ============ RENDER ============
@@ -2088,7 +2300,7 @@
                     btn.className = "filter-chip" + (currentFilter === c ? " active" : "");
                     btn.textContent = c;
                     btn.onclick = () => {
-                        vibrate(6);
+                        vibrate(35);
                         currentFilter = c;
                         renderDepenses();
                     };
@@ -2157,7 +2369,7 @@
 
                 p.querySelectorAll(".card-btn").forEach((btn) => {
                     btn.onclick = () => {
-                        vibrate(8);
+                        vibrate(40);
                         state.activeCard = btn.dataset.card;
                         renderCarte();
                     };
@@ -2248,7 +2460,7 @@
                             <div class="amt">${amt}<span class="unit">DT</span></div>
                           `;
                         row.onclick = () => {
-                            vibrate(8);
+                            vibrate(35);
                             openEditModal(kind, it.id);
                         };
                         dayDiv.appendChild(row);
@@ -2263,7 +2475,7 @@
 
             // ============ MODAL ============
             function openAddModal() {
-                vibrate(12);
+                vibrate(45);
                 editing = null;
                 document.getElementById("modal-title").textContent = "Nouvelle entrée";
                 document.getElementById("entry-date").valueAsDate = new Date();
@@ -2286,7 +2498,7 @@
             }
 
             function openEditModal(kind, id) {
-                vibrate(8);
+                vibrate(35);
                 editing = { kind, id };
                 document.getElementById("modal-title").textContent = "Modifier";
                 document.getElementById("delete-row").style.display = "flex";
@@ -2324,7 +2536,7 @@
             }
 
             function closeModal() {
-                vibrate(6);
+                vibrate(25);
                 document.getElementById("modal-backdrop").classList.remove("open");
             }
 
@@ -2375,7 +2587,7 @@
                     b.dataset.cat = c.name;
                     b.innerHTML = `<span class="glyph" style="color:${c.color}">${c.glyph}</span>${c.name}`;
                     b.onclick = () => {
-                        vibrate(6);
+                        vibrate(30);
                         g.querySelectorAll(".cat-btn").forEach((x) => x.classList.remove("active"));
                         b.classList.add("active");
                     };
@@ -2384,7 +2596,7 @@
             }
 
             async function saveEntry() {
-                vibrate(10);
+                vibrate(45);
                 const t = document.getElementById("entry-type").value;
                 const date = document.getElementById("entry-date").value;
                 const amt = parseFloat(document.getElementById("entry-amount").value);
@@ -2450,7 +2662,7 @@
             }
 
             async function deleteEntry() {
-                vibrate(20);
+                vibrate(50);
                 if (!editing) return;
                 if (!confirm("Supprimer définitivement ?")) return;
                 const { kind, id } = editing;
@@ -2538,17 +2750,16 @@
             </div>
           `;
 
-                // Attach change handlers with vibration
                 const usdIn = document.getElementById("s-usd");
                 const eurIn = document.getElementById("s-eur");
                 usdIn.onchange = (e) => {
-                    vibrate(6);
+                    vibrate(35);
                     state.taux.usd_vente = parseFloat(e.target.value);
                     pushTaux();
                     toast("Taux USD mis à jour");
                 };
                 eurIn.onchange = (e) => {
-                    vibrate(6);
+                    vibrate(35);
                     state.taux.eur_vente = parseFloat(e.target.value);
                     pushTaux();
                     toast("Taux EUR mis à jour");
@@ -2556,7 +2767,7 @@
             }
 
             function exportData() {
-                vibrate(10);
+                vibrate(35);
                 const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement("a");
@@ -2568,7 +2779,7 @@
             }
 
             async function forceSync() {
-                vibrate(12);
+                vibrate(40);
                 document.getElementById("loading").style.display = "flex";
                 await bootstrap();
                 document.getElementById("loading").style.display = "none";
@@ -2577,7 +2788,7 @@
             }
 
             async function resetAll() {
-                vibrate(20);
+                vibrate(50);
                 if (!confirm("Vraiment tout effacer sur Supabase ? Cette action est irréversible.")) return;
                 if (!confirm("Confirmation finale : je supprime tout ?")) return;
                 setSync("syncing", "Effacement…");
@@ -2615,23 +2826,27 @@
                 if (e.target.id === "modal-backdrop") closeModal();
             });
 
-            // Add vibration to FAB via its own click handler (already has onclick)
+            // FAB vibration (already has onclick, we wrap it)
             const fab = document.querySelector(".fab");
             if (fab) {
                 const orig = fab.onclick;
                 fab.onclick = function (e) {
-                    vibrate(12);
+                    vibrate(45);
                     if (orig) orig.call(this, e);
                 };
             }
 
-            // Also vibrate on setting rows clicks (any button-like setting rows)
-            document.addEventListener("click", function (e) {
-                const row = e.target.closest(".setting-row");
-                if (row && row.onclick && typeof row.onclick === "function") {
-                    // already handled by the specific onclick
-                }
-            });
+            // Settings button vibration
+            const settingsBtn = document.getElementById("settings-btn");
+            if (settingsBtn) {
+                const orig = settingsBtn.onclick;
+                settingsBtn.onclick = function (e) {
+                    vibrate(35);
+                    if (orig) orig.call(this, e);
+                };
+            }
+
+            console.log("[init] Vibration enabled. Try tapping any button — you should feel a buzz!");
         </script>
     </body>
 </html>
