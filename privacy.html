@@ -18,7 +18,12 @@
             body {
                 background: var(--bg);
                 color: var(--text-2);
-                font: 15px/1.65 "Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+                font:
+                    15px/1.65 "Inter",
+                    -apple-system,
+                    BlinkMacSystemFont,
+                    system-ui,
+                    sans-serif;
                 max-width: 680px;
                 margin: 0 auto;
                 padding: 40px 16px 80px;
@@ -62,12 +67,15 @@
         <p>Carnet is a small personal money tracker. This page explains what it stores about you, why, and what you can do about it. The short version is that your entries are yours: no one else can see them, they are never sold or shared, and you can export or delete them at any time.</p>
 
         <h2>Who is responsible</h2>
-        <p>Carnet is run by an individual, not a company. Contact: <span class="todo">[your contact email]</span>.</p>
+        <p>
+            Carnet is run by an individual, not a company. Contact: <span><a href="mailto:radhireych6@gmail.com">radhireych6@gmail.com</a></span
+            >.
+        </p>
 
         <h2>What is stored</h2>
         <ul>
             <li><strong>Account:</strong> your email address and a password. The password is hashed by Supabase Auth and never stored in plain text.</li>
-            <li><strong>Your entries:</strong> the expenses, income, card operations, savings movements and exchange rates you type in, with their dates, amounts and descriptions.</li>
+            <li><strong>Your entries:</strong> the expenses, income, card operations, savings movements and exchange rates you type in, with their dates, amounts and descriptions, plus the cards you create (name and, if you upload one, a resized copy of the card image).</li>
             <li><strong>Technical data:</strong> sign-in tokens kept in your browser so you stay signed in, plus the access logs Supabase keeps for security.</li>
         </ul>
         <p>There is no advertising, no analytics and no tracking cookies.</p>
@@ -76,7 +84,7 @@
         <p>The only purpose is to provide the tracker to you: showing your balances, charts and history across your devices. The legal basis is your consent and the service you asked for when you created an account.</p>
 
         <h2>Where it is stored</h2>
-        <p>Data is hosted by <a href="https://supabase.com/privacy" target="_blank" rel="noopener">Supabase</a> (database and authentication) in the <span class="todo">[Supabase region, e.g. EU (Frankfurt)]</span> region. This may be outside your country. The database only lets each signed-in user read and write their own rows, through Row Level Security. All traffic is encrypted with HTTPS.</p>
+        <p>Data is hosted by <a href="https://supabase.com/privacy" target="_blank" rel="noopener">Supabase</a> (database and authentication) in the <span>West EU (Paris)</span> region. This may be outside your country. The database only lets each signed-in user read and write their own rows, through Row Level Security. All traffic is encrypted with HTTPS.</p>
 
         <h2>Who can see it</h2>
         <p>Only you. The person running Carnet has administrator access to the database for maintenance and does not look at your entries unless you ask for help. Your data is never sold or shared with anyone else.</p>

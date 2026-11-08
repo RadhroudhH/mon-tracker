@@ -1244,10 +1244,149 @@
 
             /* ============ CARD SELECTOR ============ */
             .card-selector {
-                display: grid;
-                grid-template-columns: 1fr 1fr;
+                display: flex;
                 gap: 12px;
-                margin-bottom: 18px;
+                margin: 0 -18px 18px;
+                padding: 4px 18px 6px;
+                overflow-x: auto;
+                scroll-snap-type: x mandatory;
+                scroll-padding: 0 18px;
+                scrollbar-width: none;
+            }
+            .card-selector::-webkit-scrollbar {
+                display: none;
+            }
+            .card-selector .card-btn {
+                flex: 0 0 calc(50% - 6px);
+                scroll-snap-align: start;
+            }
+            .card-add {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                gap: 4px;
+                border-style: dashed !important;
+                background: transparent !important;
+                color: var(--text-3);
+                font-size: 12px;
+            }
+            .card-add .plus {
+                font-size: 26px;
+                font-weight: 300;
+                line-height: 1;
+                color: var(--accent);
+            }
+            .card-default {
+                position: absolute;
+                inset: 0;
+                background:
+                    radial-gradient(140px 90px at 85% 15%, rgba(196, 168, 92, 0.16), transparent 70%),
+                    linear-gradient(145deg, #1b1f1c 0%, #0b0e0c 100%);
+                display: flex;
+                flex-direction: column;
+                justify-content: space-between;
+                padding: 12%  10% 10%;
+                text-align: left;
+            }
+            .card-default img {
+                width: 26% !important;
+                height: auto !important;
+                max-height: 40%;
+                object-fit: contain !important;
+                opacity: 0.9 !important;
+            }
+            .card-default span {
+                font-family: var(--font-display);
+                font-style: italic;
+                color: var(--text-2);
+                font-size: 13px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            .card-btn .card-default.named + .card-badge,
+            .card-btn:has(.card-default.named) .card-badge {
+                display: none;
+            }
+            .card-edit-btn {
+                font-size: 11px;
+                letter-spacing: 0.1em;
+                text-transform: uppercase;
+                color: var(--text-3);
+                border: 1px solid var(--border-lift);
+                border-radius: 12px;
+                padding: 3px 10px;
+            }
+            .style-grid {
+                display: grid;
+                grid-template-columns: repeat(4, 1fr);
+                gap: 8px;
+            }
+            .style-opt {
+                padding: 6px 6px 8px;
+                background: var(--surface);
+                border: 1px solid var(--border);
+                border-radius: 12px;
+                font-size: 11px;
+                color: var(--text-3);
+                text-align: center;
+            }
+            .style-opt.active {
+                border-color: var(--accent);
+                color: var(--text);
+                box-shadow: inset 0 0 0 1px rgba(196, 168, 92, 0.3);
+            }
+            .style-thumb {
+                position: relative;
+                aspect-ratio: 1.586;
+                border-radius: 6px;
+                overflow: hidden;
+                margin-bottom: 6px;
+                background: var(--bg-2);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: var(--accent);
+                font-size: 16px;
+            }
+            .style-thumb > img {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+            }
+            .style-thumb .card-default span {
+                display: none;
+            }
+            .card-preview {
+                position: relative;
+                width: 70%;
+                max-width: 280px;
+                aspect-ratio: 1.586;
+                margin: 0 auto 22px;
+                border-radius: 16px;
+                overflow: hidden;
+                border: 1px solid var(--border-lift);
+                box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+            }
+            .card-preview > img {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+                display: block;
+            }
+            .check-row {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                font-size: 14px;
+                color: var(--text-2);
+                cursor: pointer;
+            }
+            .check-row input {
+                width: 18px;
+                height: 18px;
+                accent-color: var(--accent);
             }
             .card-btn {
                 position: relative;
@@ -1476,10 +1615,8 @@
 
                 <div class="field" id="field-carte-which" style="display: none">
                     <label>Which card?</label>
-                    <select id="carte-which" onchange="onCarteWhichChange()">
-                        <option value="techno">Zitouna Technologique</option>
-                        <option value="d17">La Poste D17</option>
-                    </select>
+                    <select id="carte-which" onchange="onCarteWhichChange()"></select>
+                    <div id="no-cards-hint" style="display: none; font-size: 12px; color: var(--text-3); margin-top: 8px">You have no cards yet. Add one in the Cards tab.</div>
                 </div>
 
                 <div class="field" id="field-carte-type" style="display: none">
@@ -1516,6 +1653,57 @@
                 </div>
                 <div class="btn-row" id="delete-row" style="display: none; margin-top: 8px">
                     <button class="btn btn-danger" onclick="deleteEntry()">Delete</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card editor -->
+        <div class="modal-backdrop" id="card-modal-backdrop">
+            <div class="modal">
+                <div class="modal-handle"></div>
+                <h2 id="card-modal-title">New card</h2>
+
+                <div class="card-preview" id="card-preview"></div>
+
+                <div class="field">
+                    <label for="card-name">Name</label>
+                    <input type="text" id="card-name" maxlength="60" placeholder="My bank card, D17, Revolut…" oninput="updateCardPreview()" />
+                </div>
+
+                <div class="field">
+                    <label>Look</label>
+                    <div class="style-grid" id="card-style-grid">
+                        <button type="button" class="style-opt" data-style="default"><div class="style-thumb"><div class="card-default"><img src="images/logo.png" alt="" /></div></div>Carnet</button>
+                        <button type="button" class="style-opt" data-style="techno"><div class="style-thumb"><img src="images/techno.png" alt="" /></div>Techno</button>
+                        <button type="button" class="style-opt" data-style="d17"><div class="style-thumb"><img src="images/d17.png" alt="" /></div>D17</button>
+                        <button type="button" class="style-opt" data-style="custom"><div class="style-thumb"><span>⇪</span></div>My image</button>
+                    </div>
+                </div>
+
+                <div class="field" id="card-upload-field" style="display: none">
+                    <label for="card-file">Your image</label>
+                    <input type="file" id="card-file" accept="image/*" onchange="onCardFile(this)" />
+                    <div style="font-size: 11px; color: var(--text-3); margin-top: 8px">Tip: don't use a photo that shows your full card number.</div>
+                </div>
+
+                <div class="field">
+                    <label class="check-row" style="letter-spacing: normal; text-transform: none; font-size: 14px; color: var(--text-2); margin: 0">
+                        <input type="checkbox" id="card-fx" onchange="onCardFxChange()" />
+                        Can pay in foreign currency (USD / EUR)
+                    </label>
+                </div>
+
+                <div class="field" id="card-fx-limit-field" style="display: none">
+                    <label for="card-fx-limit">Annual foreign-currency limit (DT, optional)</label>
+                    <input type="number" id="card-fx-limit" step="1" min="0" placeholder="e.g. 1000" inputmode="decimal" />
+                </div>
+
+                <div class="btn-row">
+                    <button class="btn btn-ghost" onclick="closeCardEditor()">Cancel</button>
+                    <button class="btn btn-primary" onclick="saveCard()">Save</button>
+                </div>
+                <div class="btn-row" id="card-delete-row" style="display: none; margin-top: 8px">
+                    <button class="btn btn-danger" onclick="deleteCard()">Delete card</button>
                 </div>
             </div>
         </div>
@@ -1566,7 +1754,6 @@
                 { name: "Offset", label: "Offset", glyph: "⟳", color: "#888" },
             ];
             const CARD_OP_LABELS = { Achat: "Purchase", Rechargement: "Top-up", Remboursement: "Refund" };
-            const CARD_NAMES = { techno: "Zitouna Technologique", d17: "La Poste D17" };
             const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
             const TAB_ORDER = ["dashboard", "depenses", "revenus", "carte"];
             const TAB_TITLES = { dashboard: "Overview", depenses: "Expenses", revenus: "Income", carte: "Cards", settings: "Settings" };
@@ -1579,7 +1766,7 @@
             const PERIOD_KEY = "carnet-breakdown-period";
 
             // ============ STATE ============
-            let state = { depenses: [], revenus: [], carte: [], taux: { usd_vente: 3.025, eur_vente: 3.426 }, activeCard: "techno" };
+            let state = { depenses: [], revenus: [], carte: [], cards: [], taux: { usd_vente: 3.025, eur_vente: 3.426 }, activeCard: null };
             let currentPage = "dashboard";
             let currentFilter = "All";
             let editing = null;
@@ -1775,10 +1962,13 @@
                 if (!container) return;
                 let touchStartX = 0,
                     touchStartY = 0,
-                    isSwiping = false;
+                    isSwiping = false,
+                    inScroller = false;
                 container.addEventListener(
                     "touchstart",
                     function (e) {
+                        // let the horizontal card list scroll instead of switching tabs
+                        inScroller = !!e.target.closest(".card-selector");
                         const touch = e.touches[0];
                         touchStartX = touch.clientX;
                         touchStartY = touch.clientY;
@@ -1790,7 +1980,7 @@
                 container.addEventListener(
                     "touchmove",
                     function (e) {
-                        if (e.touches.length !== 1) return;
+                        if (e.touches.length !== 1 || inScroller) return;
                         const touch = e.touches[0];
                         const dx = touch.clientX - touchStartX;
                         const dy = touch.clientY - touchStartY;
@@ -1877,7 +2067,24 @@
             }
 
             async function fetchAll() {
-                const [depR, revR, ctR, txR] = await Promise.all([sb.from("depenses").select("*"), sb.from("revenus").select("*"), sb.from("carte").select("*"), sb.from("taux").select("*")]);
+                const [depR, revR, ctR, txR, cardsR] = await Promise.all([
+                    sb.from("depenses").select("*"),
+                    sb.from("revenus").select("*"),
+                    sb.from("carte").select("*"),
+                    sb.from("taux").select("*"),
+                    sb.from("cards").select("*").order("created_at"),
+                ]);
+                if (cardsR.error) {
+                    // cards table not created yet (supabase/002_cards.sql not run): fall back to the two legacy cards
+                    console.warn("cards table unavailable:", cardsR.error.message);
+                    const used = new Set((ctR.data || []).map((c) => c.card));
+                    state.cards = [
+                        { id: "techno", name: "Zitouna Technologique", style: "techno", fx: true, fx_limit: 1000 },
+                        { id: "d17", name: "La Poste D17", style: "d17", fx: false, fx_limit: null },
+                    ].filter((c) => used.has(c.id));
+                } else {
+                    state.cards = cardsR.data || [];
+                }
                 if (depR.error) throw depR.error;
                 if (revR.error) throw revR.error;
                 if (ctR.error) throw ctR.error;
@@ -1890,7 +2097,7 @@
                     eur: parseFloat(c.eur || 0),
                     rate: parseFloat(c.rate || 0),
                     total_dt: parseFloat(c.total_dt || 0),
-                    card: c.card || "techno",
+                    card: c.card,
                 }));
                 if (txR.data && txR.data[0]) {
                     state.taux = {
@@ -2065,9 +2272,11 @@
                 const totalIncome = state.revenus.reduce((s, r) => s + r.amount, 0);
                 const totalExpenses = state.depenses.reduce((s, d) => s + d.amount, 0);
                 const cash = totalIncome - totalExpenses;
-                const d17 = cardBalance("d17");
-                const techno = cardBalance("techno");
-                return { cash, d17, techno, savings: savingsBalance(), total: cash + d17 + techno };
+                // every card the user has, plus any card id still referenced by an operation
+                const ids = [...new Set([...state.cards.map((c) => c.id), ...state.carte.map((c) => c.card).filter(Boolean)])];
+                const cards = ids.map((id) => ({ id, name: cardName(id), style: findCard(id)?.style || "default", balance: cardBalance(id) }));
+                const cardsTotal = cards.reduce((s, c) => s + c.balance, 0);
+                return { cash, cards, savings: savingsBalance(), total: cash + cardsTotal };
             }
 
             function renderDashboard() {
@@ -2096,7 +2305,7 @@
                         </div>
                     </div>
 
-                    <!-- 2×2 grid: Cash, D17, Techno, Savings -->
+                    <!-- Grid: Cash, one tile per card, Savings -->
                     <div class="soldes-grid">
                         <div class="solde-card cash">
                             <div class="icon">💰</div>
@@ -2104,18 +2313,17 @@
                             <div class="value"><span id="solde-cash">0.00</span><span class="unit">DT</span></div>
                             <div class="sub">In hand</div>
                         </div>
-                        <div class="solde-card d17">
+                        ${bal.cards
+                            .map(
+                                (c, i) => `
+                        <div class="solde-card" onclick="state.activeCard='${escapeHtml(c.id)}';showPage('carte')" style="cursor:pointer">
                             <div class="icon">💳</div>
-                            <div class="label">D17</div>
-                            <div class="value"><span id="solde-d17">0.00</span><span class="unit">DT</span></div>
-                            <div class="sub">La Poste</div>
-                        </div>
-                        <div class="solde-card techno">
-                            <div class="icon">📱</div>
-                            <div class="label">Techno</div>
-                            <div class="value"><span id="solde-techno">0.00</span><span class="unit">DT</span></div>
-                            <div class="sub">Zitouna</div>
-                        </div>
+                            <div class="label">${escapeHtml(c.name)}</div>
+                            <div class="value" style="color:${(CARD_STYLES[c.style] || CARD_STYLES.default).color}"><span id="solde-card-${i}">0.00</span><span class="unit">DT</span></div>
+                            <div class="sub">Card</div>
+                        </div>`,
+                            )
+                            .join("")}
                         <div class="solde-card epargne">
                             <div class="icon">✦</div>
                             <div class="label">Savings</div>
@@ -2156,8 +2364,7 @@
 
                 animateNumber(document.getElementById("hero-total"), 0, bal.total);
                 animateNumber(document.getElementById("solde-cash"), 0, bal.cash);
-                animateNumber(document.getElementById("solde-d17"), 0, bal.d17);
-                animateNumber(document.getElementById("solde-techno"), 0, bal.techno);
+                bal.cards.forEach((c, i) => animateNumber(document.getElementById("solde-card-" + i), 0, c.balance));
                 animateNumber(document.getElementById("solde-epargne"), 0, bal.savings);
                 animateNumber(document.getElementById("goal-val"), 0, bal.savings);
 
@@ -2285,71 +2492,234 @@
                 renderListInto(p.querySelector(".rev-list"), state.revenus, "revenu");
             }
 
+            // ============ CARDS ============
+            // Look of each card style. "custom" uses the image the user uploaded.
+            const CARD_STYLES = {
+                default: { label: "Carnet", color: "var(--accent)", gradient: "linear-gradient(160deg, #1d1a12 0%, #0f110e 100%)", border: "#2f2a1c" },
+                techno: { label: "Technologique", img: "images/techno.png", color: "var(--violet)", gradient: "linear-gradient(160deg, #1D1425 0%, #10131C 100%)", border: "#2A2035" },
+                d17: { label: "D17", img: "images/d17.png", color: "var(--success)", gradient: "linear-gradient(160deg, #1A2419 0%, #0F1913 100%)", border: "#1F3025" },
+                custom: { label: "My image", color: "var(--accent)", gradient: "linear-gradient(160deg, var(--surface) 0%, var(--bg-2) 100%)", border: "var(--border)" },
+            };
+
+            const findCard = (id) => state.cards.find((c) => c.id === id);
+            const cardName = (id) => findCard(id)?.name || id || "—";
+
+            // The picture of a card: preset image, uploaded image, or the default dark Carnet card
+            function cardFace(card) {
+                const st = CARD_STYLES[card.style] || CARD_STYLES.default;
+                const src = card.style === "custom" ? card.image : st.img;
+                if (src) return `<img src="${escapeHtml(src)}" alt="" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'card-default',innerHTML:'<img src=&quot;images/logo.png&quot; alt=&quot;&quot;>'}))">`;
+                return `<div class="card-default named"><img src="images/logo.png" alt=""><span>${escapeHtml(card.name)}</span></div>`;
+            }
+
             function renderCarte() {
                 const p = document.getElementById("page-carte");
-                const activeCard = state.activeCard || "techno";
-                const ops = state.carte.filter((c) => (c.card || "techno") === activeCard);
-                const plus = ops.filter((c) => c.type === "Rechargement" || c.type === "Remboursement").reduce((s, c) => s + c.total_dt, 0);
-                const minus = ops.filter((c) => c.type === "Achat").reduce((s, c) => s + c.total_dt, 0);
-                const solde = plus - minus;
-                const isTechno = activeCard === "techno";
-                const plafondPct = isTechno ? Math.min(1, minus / 1000) : 0;
-                const cardName = CARD_NAMES[activeCard];
-                const gradient = isTechno ? "linear-gradient(160deg, #1D1425 0%, #10131C 100%)" : "linear-gradient(160deg, #1A2419 0%, #0F1913 100%)";
-                const border = isTechno ? "#2A2035" : "#1F3025";
-                const valueColor = isTechno ? "var(--violet)" : "var(--success)";
+                if (!findCard(state.activeCard)) state.activeCard = state.cards[0]?.id || null;
+                const card = findCard(state.activeCard);
+
+                const selector = `
+                    <div class="card-selector">
+                        ${state.cards
+                            .map(
+                                (c) => `
+                            <button class="card-btn ${c.id === state.activeCard ? "active" : ""}" data-card="${escapeHtml(c.id)}" aria-label="${escapeHtml(c.name)} card">
+                                ${cardFace(c)}
+                                <div class="card-badge">${escapeHtml(c.name)}</div>
+                            </button>`,
+                            )
+                            .join("")}
+                        <button class="card-btn card-add" onclick="openCardEditor()" aria-label="Add a card">
+                            <span class="plus">+</span><span>Add a card</span>
+                        </button>
+                    </div>`;
+
+                if (!card) {
+                    p.innerHTML = `
+                        ${selector}
+                        <div class="empty"><span class="glyph">◦</span>No cards yet.<br>Add your bank or prepaid cards to track their balance.</div>`;
+                    bindCardSelector(p);
+                    return;
+                }
+
+                const st = CARD_STYLES[card.style] || CARD_STYLES.default;
+                const ops = state.carte.filter((c) => c.card === card.id);
+                const balance = cardBalance(card.id);
+                const fxSpent = ops.filter((c) => c.type === "Achat" && c.currency !== "DT").reduce((s, c) => s + c.total_dt, 0);
+                const limit = card.fx && card.fx_limit ? Number(card.fx_limit) : 0;
 
                 p.innerHTML = `
-                    <div class="card-selector">
-                        <button class="card-btn ${isTechno ? "active" : ""}" data-card="techno" aria-label="Zitouna Technologique card">
-                            <img src="images/techno.png" alt="Zitouna Technologique" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-                            <div class="card-fallback" style="display:none">Zitouna<br>Technologique</div>
-                            <div class="card-badge">Techno</div>
-                        </button>
-                        <button class="card-btn ${!isTechno ? "active" : ""}" data-card="d17" aria-label="D17 card">
-                            <img src="images/d17.png" alt="D17" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-                            <div class="card-fallback" style="display:none">La Poste<br>D17</div>
-                            <div class="card-badge">D17</div>
-                        </button>
-                    </div>
-                    <div class="carte-hero" style="background:${gradient};border-color:${border}">
-                        <div class="hero-label">${cardName}</div>
-                        <div class="hero-value" style="color:${valueColor}"><span class="carte-solde-val">0.00</span><span class="unit">DT</span></div>
-                        <div class="hero-sub">${ops.length} operation${ops.length === 1 ? "" : "s"}</div>
+                    ${selector}
+                    <div class="carte-hero" style="background:${st.gradient};border-color:${st.border}">
+                        <div class="hero-label" style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+                            <span>${escapeHtml(card.name)}</span>
+                            <button class="card-edit-btn" onclick="openCardEditor('${escapeHtml(card.id)}')">Edit</button>
+                        </div>
+                        <div class="hero-value" style="color:${st.color}"><span class="carte-solde-val">0.00</span><span class="unit">DT</span></div>
+                        <div class="hero-sub">${ops.length} operation${ops.length === 1 ? "" : "s"}${card.fx ? " · USD / EUR allowed" : ""}</div>
                         ${
-                            isTechno
+                            limit
                                 ? `
                             <div class="plafond-bar-wrap">
                                 <div class="plafond-label">
                                     <span>Annual foreign-currency limit</span>
-                                    <span><span class="plafond-used">0</span> / 1,000 DT</span>
+                                    <span><span class="plafond-used">0</span> / ${fmtInt(limit)} DT</span>
                                 </div>
                                 <div class="plafond-bar"><div class="plafond-fill"></div></div>
-                            </div>
-                        `
+                            </div>`
                                 : ""
                         }
                     </div>
                     <div class="carte-list"></div>
                 `;
-                p.querySelectorAll(".card-btn").forEach((btn) => {
+                bindCardSelector(p);
+                animateNumber(p.querySelector(".carte-solde-val"), 0, balance);
+                if (limit) {
+                    animateNumber(p.querySelector(".plafond-used"), 0, fxSpent);
+                    const fill = p.querySelector(".plafond-fill");
+                    requestAnimationFrame(() => requestAnimationFrame(() => (fill.style.transform = "scaleX(" + Math.min(1, fxSpent / limit) + ")")));
+                }
+                renderListInto(p.querySelector(".carte-list"), ops, "carte");
+            }
+
+            function bindCardSelector(p) {
+                p.querySelectorAll(".card-btn[data-card]").forEach((btn) => {
                     btn.onclick = () => {
                         vibrate(40);
                         state.activeCard = btn.dataset.card;
                         renderCarte();
                     };
                 });
-                animateNumber(p.querySelector(".carte-solde-val"), 0, solde);
-                if (isTechno) {
-                    animateNumber(p.querySelector(".plafond-used"), 0, minus);
-                    const fill = p.querySelector(".plafond-fill");
-                    requestAnimationFrame(() => {
-                        requestAnimationFrame(() => {
-                            fill.style.transform = "scaleX(" + plafondPct + ")";
-                        });
-                    });
-                }
-                renderListInto(p.querySelector(".carte-list"), ops, "carte");
+            }
+
+            // ----- Card editor (add / edit / delete) -----
+            let editingCard = null; // card id being edited, or null for a new card
+            let cardDraftImage = null; // uploaded image (data URL) for the "custom" style
+
+            function openCardEditor(id) {
+                vibrate(35);
+                const card = id ? findCard(id) : null;
+                editingCard = card ? card.id : null;
+                cardDraftImage = card?.image || null;
+                document.getElementById("card-modal-title").textContent = card ? "Edit card" : "New card";
+                document.getElementById("card-name").value = card?.name || "";
+                document.getElementById("card-fx").checked = !!card?.fx;
+                document.getElementById("card-fx-limit").value = card?.fx_limit || "";
+                document.getElementById("card-delete-row").style.display = card ? "flex" : "none";
+                document.getElementById("card-file").value = "";
+                setCardStyle(card?.style || "default");
+                onCardFxChange();
+                document.getElementById("card-modal-backdrop").classList.add("open");
+            }
+
+            function closeCardEditor() {
+                vibrate(25);
+                document.getElementById("card-modal-backdrop").classList.remove("open");
+            }
+
+            function setCardStyle(style) {
+                document.querySelectorAll("#card-style-grid .style-opt").forEach((b) => b.classList.toggle("active", b.dataset.style === style));
+                document.getElementById("card-upload-field").style.display = style === "custom" ? "block" : "none";
+                // presets: sensible defaults for currency support
+                updateCardPreview();
+            }
+
+            const selectedCardStyle = () => document.querySelector("#card-style-grid .style-opt.active")?.dataset.style || "default";
+
+            function updateCardPreview() {
+                const style = selectedCardStyle();
+                const name = document.getElementById("card-name").value.trim() || "My card";
+                document.getElementById("card-preview").innerHTML = cardFace({ style, name, image: cardDraftImage });
+                const customOpt = document.querySelector('#card-style-grid [data-style="custom"] .style-thumb');
+                customOpt.innerHTML = cardDraftImage ? `<img src="${cardDraftImage}" alt="">` : "<span>⇪</span>";
+            }
+
+            function onCardFxChange() {
+                document.getElementById("card-fx-limit-field").style.display = document.getElementById("card-fx").checked ? "block" : "none";
+            }
+
+            // Resize the uploaded picture in the browser (max 640×404, JPEG) so it stays small
+            function onCardFile(input) {
+                const file = input.files && input.files[0];
+                if (!file) return;
+                if (!/^image\//.test(file.type)) return toast("Choose an image file", true);
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const W = 640,
+                            H = 404; // credit-card ratio
+                        const canvas = document.createElement("canvas");
+                        canvas.width = W;
+                        canvas.height = H;
+                        const ctx = canvas.getContext("2d");
+                        const scale = Math.max(W / img.width, H / img.height); // cover
+                        const w = img.width * scale,
+                            h = img.height * scale;
+                        ctx.drawImage(img, (W - w) / 2, (H - h) / 2, w, h);
+                        cardDraftImage = canvas.toDataURL("image/jpeg", 0.82);
+                        setCardStyle("custom");
+                    };
+                    img.onerror = () => toast("Could not read this image", true);
+                    img.src = reader.result;
+                };
+                reader.readAsDataURL(file);
+            }
+
+            async function saveCard() {
+                vibrate(45);
+                const name = document.getElementById("card-name").value.trim();
+                const style = selectedCardStyle();
+                const fx = document.getElementById("card-fx").checked;
+                const limitVal = parseFloat(document.getElementById("card-fx-limit").value);
+                if (!name) return toast("Give the card a name", true);
+                if (name.length > 60) return toast("Name is too long", true);
+                if (style === "custom" && !cardDraftImage) return toast("Upload an image or pick another look", true);
+
+                const existing = editingCard ? findCard(editingCard) : null;
+                const card = {
+                    id: existing?.id || newId("k"),
+                    name,
+                    style,
+                    image: style === "custom" ? cardDraftImage : null,
+                    fx,
+                    fx_limit: fx && limitVal > 0 ? limitVal : null,
+                };
+                if (existing) Object.assign(existing, card);
+                else state.cards.push({ ...card, created_at: new Date().toISOString() });
+                state.activeCard = card.id;
+                closeCardEditor();
+                render();
+                toast(existing ? "Card updated" : "Card added");
+
+                setSync("syncing", "Sync…");
+                const { error } = await sb.from("cards").upsert(card);
+                if (error) {
+                    setSync("error", "Error");
+                    toast("Could not save card: " + error.message, true);
+                } else setSync("", "Up to date");
+            }
+
+            async function deleteCard() {
+                vibrate(50);
+                const card = findCard(editingCard);
+                if (!card) return;
+                const ops = state.carte.filter((c) => c.card === card.id);
+                const msg = ops.length ? `Delete "${card.name}" and its ${ops.length} operation${ops.length === 1 ? "" : "s"}? This cannot be undone.` : `Delete "${card.name}"?`;
+                if (!confirm(msg)) return;
+                state.cards = state.cards.filter((c) => c.id !== card.id);
+                state.carte = state.carte.filter((c) => c.card !== card.id);
+                state.activeCard = state.cards[0]?.id || null;
+                closeCardEditor();
+                render();
+                toast("Card deleted");
+
+                setSync("syncing", "Sync…");
+                const r1 = await sb.from("carte").delete().eq("card", card.id);
+                const r2 = r1.error ? r1 : await sb.from("cards").delete().eq("id", card.id);
+                if (r2.error) {
+                    setSync("error", "Error");
+                    toast("Could not delete card: " + r2.error.message, true);
+                } else setSync("", "Up to date");
             }
 
             function renderListInto(container, items, kind) {
@@ -2453,7 +2823,7 @@
                 document.getElementById("entry-amount").value = "";
                 document.getElementById("carte-op-type").value = "Achat";
                 document.getElementById("carte-devise").value = "DT";
-                document.getElementById("carte-which").value = state.activeCard || "techno";
+                fillCardSelect(state.activeCard);
                 document.getElementById("delete-row").style.display = "none";
                 const typeSel = document.getElementById("entry-type");
                 if (currentPage === "revenus") typeSel.value = "revenu";
@@ -2489,7 +2859,7 @@
                     entry = state.carte.find((c) => c.id === id);
                     document.getElementById("entry-date").value = entry.date || "";
                     document.getElementById("entry-desc").value = entry.description || "";
-                    document.getElementById("carte-which").value = entry.card || "techno";
+                    fillCardSelect(entry.card);
                     document.getElementById("carte-op-type").value = entry.type;
                     document.getElementById("carte-devise").value = entry.currency;
                     let a;
@@ -2547,17 +2917,31 @@
                 };
             });
 
+            // Fill the "Which card?" dropdown with the user's cards
+            function fillCardSelect(selected) {
+                const sel = document.getElementById("carte-which");
+                sel.innerHTML = state.cards.map((c) => `<option value="${escapeHtml(c.id)}">${escapeHtml(c.name)}</option>`).join("");
+                // keep an operation's card visible even if that card was removed
+                if (selected && !findCard(selected)) sel.insertAdjacentHTML("beforeend", `<option value="${escapeHtml(selected)}">${escapeHtml(selected)}</option>`);
+                sel.value = selected && sel.querySelector(`option[value="${CSS.escape(selected)}"]`) ? selected : state.cards[0]?.id || "";
+                document.getElementById("no-cards-hint").style.display = state.cards.length ? "none" : "block";
+                sel.style.display = sel.options.length ? "block" : "none";
+            }
+
             function onCarteWhichChange() {
                 const t = document.getElementById("entry-type").value;
-                if (t !== "carte") return;
-                const which = document.getElementById("carte-which").value;
                 const devSel = document.getElementById("carte-devise");
                 const devField = document.getElementById("field-carte-devise");
-                if (which === "d17") {
+                if (t !== "carte") {
+                    devField.style.display = "none";
+                    return;
+                }
+                const card = findCard(document.getElementById("carte-which").value);
+                if (card && card.fx) {
+                    devField.style.display = "block";
+                } else {
                     devSel.value = "DT";
                     devField.style.display = "none";
-                } else {
-                    devField.style.display = "block";
                 }
                 calcCarteTotal();
             }
@@ -2639,7 +3023,11 @@
                 } else {
                     kind = "carte";
                     const which = document.getElementById("carte-which").value;
-                    const dev = which === "d17" ? "DT" : document.getElementById("carte-devise").value;
+                    if (!which) {
+                        toast("Add a card first (Cards tab)", true);
+                        return;
+                    }
+                    const dev = findCard(which)?.fx ? document.getElementById("carte-devise").value : "DT";
                     const rate = dev === "USD" ? state.taux.usd_vente : dev === "EUR" ? state.taux.eur_vente : 1;
                     entry = {
                         id: editing?.id || newId("c"),
@@ -2816,7 +3204,7 @@
                 }));
                 const cards = [...state.carte].sort(byDate).map((c) => ({
                     Date: c.date || "",
-                    Card: CARD_NAMES[c.card] || c.card,
+                    Card: cardName(c.card),
                     Description: c.description || "",
                     Type: CARD_OP_LABELS[c.type] || c.type,
                     Currency: c.currency,
@@ -2827,8 +3215,7 @@
                 const summary = [
                     { Item: "Total balance", "Value (DT)": round2(bal.total) },
                     { Item: "Cash", "Value (DT)": round2(bal.cash) },
-                    { Item: "D17 card", "Value (DT)": round2(bal.d17) },
-                    { Item: "Techno card", "Value (DT)": round2(bal.techno) },
+                    ...bal.cards.map((c) => ({ Item: c.name + " (card)", "Value (DT)": round2(c.balance) })),
                     { Item: "Savings", "Value (DT)": round2(bal.savings) },
                     { Item: "USD selling rate", "Value (DT)": state.taux.usd_vente },
                     { Item: "EUR selling rate", "Value (DT)": state.taux.eur_vente },
@@ -2906,6 +3293,16 @@
             initAuth();
             document.getElementById("modal-backdrop").addEventListener("click", (e) => {
                 if (e.target.id === "modal-backdrop") closeModal();
+            });
+            document.getElementById("card-modal-backdrop").addEventListener("click", (e) => {
+                if (e.target.id === "card-modal-backdrop") closeCardEditor();
+            });
+            document.querySelectorAll("#card-style-grid .style-opt").forEach((b) => {
+                b.onclick = () => {
+                    vibrate(30);
+                    if (b.dataset.style === "custom" && !cardDraftImage) document.getElementById("card-file").click();
+                    setCardStyle(b.dataset.style);
+                };
             });
 
             const fab = document.querySelector(".fab");

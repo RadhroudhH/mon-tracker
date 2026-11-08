@@ -36,6 +36,11 @@ The PIN never protected the database. It only hid the screen.
 
 Between step 3 and step 4 the site works the same as before. Only the PIN is gone. Keep that window short.
 
+8. **Custom cards.** Run `supabase/002_cards.sql` in the SQL Editor. There is nothing to edit.
+   It creates the `cards` table, so each user gets their own list and new users start with none.
+   It also recreates your two cards (Zitouna Technologique and La Poste D17) under the same ids, so your card operations stay attached.
+   Until you run it, the site falls back to your two existing cards, but new cards cannot be saved.
+
 ## Legal checklist (not legal advice)
 
 **Tunisia, Organic Law 2004-63 (INPDP).** Processing personal data needs a **prior declaration to the INPDP** (Decree 2007-3004). Supabase stores data outside Tunisia, and **transfers abroad need INPDP authorization**. Do this before opening sign-ups to the public.
