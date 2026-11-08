@@ -50,6 +50,10 @@ Between step 3 and step 4 the site works the same as before. Only the PIN is gon
    It creates the `categories` and `goals` tables with strict per-user policies, and recreates your "Six-month goal" (1,200 DT of savings).
    Until you run it, the Goals section and the "+ New" category button stay hidden.
 
+10. **Card colors, custom dashboard and themes.** Run `supabase/005_card_colors_prefs.sql`. There is nothing to edit.
+    It adds a `color` column to cards and a `prefs` table (one row per user, strict policy) that stores the dashboard order, hidden sections, theme and category colors.
+    Until you run it, the Appearance settings and card colors stay hidden, and dashboard changes are kept only on that device.
+
 ## Legal checklist (not legal advice)
 
 **Tunisia, Organic Law 2004-63 (INPDP).** Processing personal data needs a **prior declaration to the INPDP** (Decree 2007-3004). Supabase stores data outside Tunisia, and **transfers abroad need INPDP authorization**. Do this before opening sign-ups to the public.

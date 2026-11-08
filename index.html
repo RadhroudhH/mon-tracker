@@ -1242,6 +1242,177 @@
                 text-transform: uppercase;
             }
 
+            /* ============ DASHBOARD EDITING ============ */
+            .dash-top {
+                display: flex;
+                justify-content: flex-end;
+                align-items: center;
+                gap: 8px;
+                margin: -4px 0 10px;
+            }
+            .dash-top.editing {
+                margin-bottom: 14px;
+                padding: 10px 12px;
+                background: var(--surface);
+                border: 1px solid var(--accent-dim);
+                border-radius: 14px;
+            }
+            .dash-hint {
+                flex: 1;
+                font-size: 11px;
+                color: var(--text-3);
+            }
+            .pen-btn {
+                width: 32px;
+                height: 32px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: var(--text-3);
+                background: var(--surface);
+                border: 1px solid var(--border);
+            }
+            .pen-btn:active {
+                transform: scale(0.9);
+                color: var(--accent);
+            }
+            .small-btn.primary {
+                background: var(--accent);
+                color: #0a0e0c;
+                border-color: var(--accent);
+            }
+            .small-btn {
+                margin-bottom: 0;
+            }
+            .section-head .small-btn {
+                margin-bottom: 6px;
+            }
+            .dash-sec.editing {
+                position: relative;
+                border: 1px dashed var(--border-lift);
+                border-radius: 22px;
+                padding: 8px 8px 0;
+                margin-bottom: 14px;
+            }
+            .dash-sec.is-hidden > :not(.sec-tools) {
+                opacity: 0.3;
+                pointer-events: none;
+            }
+            .sec-tools {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                margin-bottom: 8px;
+            }
+            .sec-name {
+                flex: 1;
+                font-size: 10px;
+                letter-spacing: 0.2em;
+                text-transform: uppercase;
+                color: var(--text-3);
+                padding-left: 6px;
+            }
+            .sec-tools button,
+            .tile-tools button {
+                min-width: 32px;
+                height: 30px;
+                padding: 0 10px;
+                border-radius: 10px;
+                background: var(--surface-2);
+                border: 1px solid var(--border-lift);
+                color: var(--text);
+                font-size: 14px;
+            }
+            .sec-tools button:disabled,
+            .tile-tools button:disabled {
+                opacity: 0.3;
+            }
+            .sec-tools .sec-hide {
+                font-size: 11px;
+                color: var(--text-2);
+            }
+            .tile-tools {
+                display: flex;
+                gap: 6px;
+                margin-top: 10px;
+            }
+            .tile-tools button {
+                flex: 1;
+            }
+
+            /* ============ APPEARANCE ============ */
+            .setting-block {
+                padding: 16px 18px;
+                background: var(--surface);
+                border: 1px solid var(--border);
+                border-radius: 12px;
+                margin-bottom: 8px;
+            }
+            .setting-block .info-label {
+                font-size: 14px;
+                color: var(--text);
+                margin-bottom: 10px;
+            }
+            .setting-block .info-sub {
+                font-size: 11px;
+                color: var(--text-3);
+                margin-top: -6px;
+            }
+            details.setting-block summary {
+                cursor: pointer;
+                margin-bottom: 0;
+                list-style: none;
+            }
+            details.setting-block summary::after {
+                content: " ›";
+                color: var(--text-4);
+            }
+            details[open].setting-block summary::after {
+                content: " ⌄";
+            }
+            .theme-grid {
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 8px;
+            }
+            .theme-opt {
+                display: flex;
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+                padding: 10px;
+                border-radius: 12px;
+                border: 2px solid;
+                font-size: 12px;
+                color: #e9e7de;
+            }
+            .theme-chip {
+                width: 100%;
+                height: 18px;
+                border-radius: 6px;
+                border: 1px solid;
+            }
+            .swatches.small {
+                gap: 7px;
+            }
+            .swatches.small .swatch {
+                width: 24px;
+                height: 24px;
+            }
+            .cat-color-row {
+                padding: 10px 0;
+                border-top: 1px solid var(--border);
+            }
+            .cat-color-name {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                font-size: 13px;
+                color: var(--text-2);
+                margin-bottom: 8px;
+            }
+
             /* ============ GOALS & CATEGORIES ============ */
             .goal-card {
                 margin-bottom: 12px;
@@ -1838,6 +2009,11 @@
                     <input type="text" id="card-name" maxlength="60" placeholder="My bank card, D17, Revolut…" oninput="updateCardPreview()" />
                 </div>
 
+                <div class="field" id="card-color-field">
+                    <label>Color on the dashboard</label>
+                    <div class="swatches" id="card-colors"></div>
+                </div>
+
                 <div class="field">
                     <label>Look</label>
                     <div class="style-grid" id="card-style-grid">
@@ -2103,6 +2279,10 @@
             }
 
             async function signOut() {
+                // the next person on this device should not inherit this user's theme
+                try {
+                    localStorage.removeItem(PREFS_CACHE);
+                } catch (_) {}
                 vibrate(35);
                 await sb.auth.signOut();
             }
@@ -2239,7 +2419,7 @@
                 // this second check means a misconfigured policy can never show someone else's rows.
                 const uid = currentUser?.id;
                 if (!uid) throw new Error("not signed in");
-                const [depR, revR, ctR, txR, cardsR, catR, goalR] = await Promise.all([
+                const [depR, revR, ctR, txR, cardsR, catR, goalR, prefR] = await Promise.all([
                     sb.from("depenses").select("*").eq("user_id", uid),
                     sb.from("revenus").select("*").eq("user_id", uid),
                     sb.from("carte").select("*").eq("user_id", uid),
@@ -2247,7 +2427,18 @@
                     sb.from("cards").select("*").eq("user_id", uid).order("created_at"),
                     sb.from("categories").select("*").eq("user_id", uid).order("created_at"),
                     sb.from("goals").select("*").eq("user_id", uid).order("created_at"),
+                    sb.from("prefs").select("data").eq("user_id", uid),
                 ]);
+                // prefs table (dashboard layout, theme) comes from supabase/005_card_colors_prefs.sql
+                prefsReady = !prefR.error;
+                if (prefR.error) console.warn("prefs table unavailable:", prefR.error.message);
+                else if (prefR.data && prefR.data[0]) {
+                    prefs = normalizePrefs(prefR.data[0].data);
+                    try {
+                        localStorage.setItem(PREFS_CACHE, JSON.stringify(prefs));
+                    } catch (_) {}
+                }
+                applyTheme();
                 // categories / goals tables come from supabase/004_categories_goals.sql
                 if (catR.error) console.warn("categories table unavailable:", catR.error.message);
                 if (goalR.error) console.warn("goals table unavailable:", goalR.error.message);
@@ -2365,7 +2556,7 @@
             // Built-in categories + the user's own ones. A custom category is stored in
             // expenses by its id, so renaming it later keeps every expense attached.
             function allCategories() {
-                return [...CATEGORIES, ...state.categories.map((c) => ({ name: c.id, label: c.name, glyph: c.glyph, color: c.color, custom: true }))];
+                return [...CATEGORIES.map((c) => ({ ...c, color: prefs.catColors[c.name] || c.color })), ...state.categories.map((c) => ({ name: c.id, label: c.name, glyph: c.glyph, color: c.color, custom: true }))];
             }
             let featuresReady = true; // false until supabase/004_categories_goals.sql has been run
             const isWithdrawal = (d) => d.category === "Epargne" && d.amount < 0;
@@ -2441,6 +2632,228 @@
                 else if (currentPage === "settings") renderSettings();
             }
 
+            // ============ PREFERENCES & THEME ============
+            // Fixed palette used for card colors and category colors (no free color wheel)
+            const PALETTE = ["#C4A85C", "#E8CE84", "#D9954A", "#D97558", "#E06C8A", "#D987B8", "#9B87BE", "#7C8CE0", "#5FA8C9", "#4FB3A9", "#6DB89B", "#9CC26B", "#A6A79E", "#E9E7DE"];
+
+            // Background themes: every neutral of the interface
+            const BG_THEMES = {
+                forest: { label: "Forest", bg: "#0a0e0c", bg2: "#101512", surface: "#171d19", surface2: "#1f2622", border: "#262e29", borderLift: "#303934" },
+                graphite: { label: "Graphite", bg: "#0c0c0d", bg2: "#121214", surface: "#1a1a1d", surface2: "#222226", border: "#2a2a2f", borderLift: "#35353b" },
+                midnight: { label: "Midnight", bg: "#080b12", bg2: "#0d1220", surface: "#141b2b", surface2: "#1b2336", border: "#232d44", borderLift: "#2e3a55" },
+                ocean: { label: "Ocean", bg: "#071012", bg2: "#0b181b", surface: "#112226", surface2: "#172b30", border: "#1f363c", borderLift: "#29444b" },
+                plum: { label: "Plum", bg: "#0f0a10", bg2: "#160f18", surface: "#1f1622", surface2: "#281d2c", border: "#322536", borderLift: "#3e2f43" },
+                espresso: { label: "Espresso", bg: "#0f0c09", bg2: "#16120e", surface: "#1f1914", surface2: "#28201a", border: "#332a22", borderLift: "#40352b" },
+            };
+
+            // Secondary (accent) colors: buttons, highlights, progress bars
+            const ACCENTS = {
+                gold: { label: "Gold", a: "#c4a85c", a2: "#e8ce84", dim: "#7a6a3a" },
+                coral: { label: "Coral", a: "#e07a5f", a2: "#f2a48e", dim: "#7d4535" },
+                rose: { label: "Rose", a: "#d9739a", a2: "#f0a3c0", dim: "#7a4157" },
+                lavender: { label: "Lavender", a: "#9b87be", a2: "#c4b5e0", dim: "#584c6e" },
+                sky: { label: "Sky", a: "#5fa8c9", a2: "#9ccfe6", dim: "#36607a" },
+                teal: { label: "Teal", a: "#4fb3a9", a2: "#8fd9d0", dim: "#2d6560" },
+                lime: { label: "Lime", a: "#9cc26b", a2: "#c6e19f", dim: "#58703b" },
+            };
+
+            const DASH_SECTIONS = { hero: "Total balance", balances: "Cash, cards & savings", breakdown: "Spending breakdown", goals: "Goals", insights: "What I notice" };
+            const DEFAULT_PREFS = () => ({ layout: Object.keys(DASH_SECTIONS), hidden: [], tiles: [], theme: { bg: "forest", accent: "gold" }, catColors: {} });
+            const PREFS_CACHE = "carnet-prefs";
+            let prefs = DEFAULT_PREFS();
+            let prefsReady = false; // false until supabase/005_card_colors_prefs.sql has been run
+            let dashEditing = false;
+
+            const isColor = (c) => typeof c === "string" && /^#[0-9A-Fa-f]{6}$/.test(c);
+
+            // Accept only known values, so a broken or old preferences object never breaks the app
+            function normalizePrefs(p) {
+                const d = DEFAULT_PREFS();
+                if (!p || typeof p !== "object") return d;
+                const layout = (Array.isArray(p.layout) ? p.layout : []).filter((id, i, a) => DASH_SECTIONS[id] && a.indexOf(id) === i);
+                Object.keys(DASH_SECTIONS).forEach((id) => layout.includes(id) || layout.push(id));
+                const catColors = {};
+                Object.entries(p.catColors || {}).forEach(([k, v]) => isColor(v) && (catColors[k] = v));
+                return {
+                    layout,
+                    hidden: (Array.isArray(p.hidden) ? p.hidden : []).filter((id) => DASH_SECTIONS[id]),
+                    tiles: (Array.isArray(p.tiles) ? p.tiles : []).filter((k) => typeof k === "string").slice(0, 100),
+                    theme: { bg: BG_THEMES[p.theme?.bg] ? p.theme.bg : d.theme.bg, accent: ACCENTS[p.theme?.accent] ? p.theme.accent : d.theme.accent },
+                    catColors,
+                };
+            }
+
+            function applyTheme() {
+                const bg = BG_THEMES[prefs.theme.bg] || BG_THEMES.forest;
+                const ac = ACCENTS[prefs.theme.accent] || ACCENTS.gold;
+                const s = document.documentElement.style;
+                s.setProperty("--bg", bg.bg);
+                s.setProperty("--bg-2", bg.bg2);
+                s.setProperty("--surface", bg.surface);
+                s.setProperty("--surface-2", bg.surface2);
+                s.setProperty("--border", bg.border);
+                s.setProperty("--border-lift", bg.borderLift);
+                s.setProperty("--accent", ac.a);
+                s.setProperty("--accent-2", ac.a2);
+                s.setProperty("--accent-dim", ac.dim);
+                document.querySelector('meta[name="theme-color"]')?.setAttribute("content", bg.bg);
+            }
+
+            function loadCachedPrefs() {
+                try {
+                    prefs = normalizePrefs(JSON.parse(localStorage.getItem(PREFS_CACHE) || "null"));
+                } catch (_) {}
+                applyTheme();
+            }
+
+            let prefsTimer = null;
+            function savePrefs() {
+                try {
+                    localStorage.setItem(PREFS_CACHE, JSON.stringify(prefs));
+                } catch (_) {}
+                if (!prefsReady || !currentUser) return;
+                clearTimeout(prefsTimer);
+                prefsTimer = setTimeout(async () => {
+                    const { error } = await sb.from("prefs").upsert({ user_id: currentUser.id, data: prefs, updated_at: new Date().toISOString() });
+                    if (error) toast("Could not save your layout: " + error.message, true);
+                }, 500);
+            }
+
+            // ----- Dashboard editing (pen icon) -----
+            function toggleDashEdit() {
+                vibrate(35);
+                dashEditing = !dashEditing;
+                if (!dashEditing) savePrefs();
+                renderDashboard();
+            }
+
+            function moveSection(id, delta) {
+                vibrate(25);
+                const l = prefs.layout;
+                const i = l.indexOf(id),
+                    j = i + delta;
+                if (i < 0 || j < 0 || j >= l.length) return;
+                [l[i], l[j]] = [l[j], l[i]];
+                renderDashboard();
+            }
+
+            function toggleSection(id) {
+                vibrate(25);
+                prefs.hidden = prefs.hidden.includes(id) ? prefs.hidden.filter((x) => x !== id) : [...prefs.hidden, id];
+                renderDashboard();
+            }
+
+            function resetDashboard() {
+                if (!confirm("Reset the dashboard to the default order?")) return;
+                const d = DEFAULT_PREFS();
+                prefs.layout = d.layout;
+                prefs.hidden = [];
+                prefs.tiles = [];
+                renderDashboard();
+            }
+
+            // Balance tiles: "cash", "savings" and "card:<id>", in the user's order
+            function orderedTiles(bal) {
+                const keys = ["cash", ...bal.cards.map((c) => "card:" + c.id), "savings"];
+                const pos = (k) => {
+                    const i = prefs.tiles.indexOf(k);
+                    return i < 0 ? 1000 + keys.indexOf(k) : i;
+                };
+                return keys.sort((a, b) => pos(a) - pos(b));
+            }
+
+            function moveTile(key, delta) {
+                vibrate(25);
+                const order = orderedTiles(computeBalances());
+                const i = order.indexOf(key),
+                    j = i + delta;
+                if (i < 0 || j < 0 || j >= order.length) return;
+                [order[i], order[j]] = [order[j], order[i]];
+                prefs.tiles = order;
+                renderDashboard();
+            }
+
+            // ----- Appearance settings -----
+            function setThemePart(part, value) {
+                vibrate(25);
+                prefs.theme[part] = value;
+                applyTheme();
+                savePrefs();
+                renderSettings();
+            }
+
+            async function setCategoryColorPref(name, color) {
+                vibrate(25);
+                const custom = state.categories.find((c) => c.id === name);
+                if (custom) {
+                    custom.color = color;
+                    renderSettings();
+                    const { error } = await sb.from("categories").update({ color }).eq("id", custom.id).eq("user_id", currentUser.id);
+                    if (error) toast("Could not save color: " + error.message, true);
+                    return;
+                }
+                prefs.catColors[name] = color;
+                savePrefs();
+                renderSettings();
+            }
+
+            function resetAppearance() {
+                if (!confirm("Reset colors to the default theme?")) return;
+                prefs.theme = DEFAULT_PREFS().theme;
+                prefs.catColors = {};
+                applyTheme();
+                savePrefs();
+                renderSettings();
+            }
+
+            function swatchRow(colors, current, onPick) {
+                return `<div class="swatches small">${colors
+                    .map((c) => `<button type="button" class="swatch ${c.toLowerCase() === (current || "").toLowerCase() ? "active" : ""}" style="background:${c}" aria-label="Color ${c}" onclick="${onPick(c)}"></button>`)
+                    .join("")}</div>`;
+            }
+
+            function appearanceSettingsHTML() {
+                const bgOpts = Object.entries(BG_THEMES)
+                    .map(
+                        ([id, t]) => `
+                    <button type="button" class="theme-opt ${prefs.theme.bg === id ? "active" : ""}" onclick="setThemePart('bg','${id}')" style="background:${t.bg};border-color:${prefs.theme.bg === id ? "var(--accent)" : t.borderLift}">
+                        <span class="theme-chip" style="background:${t.surface};border-color:${t.border}"></span>${t.label}
+                    </button>`,
+                    )
+                    .join("");
+                const acOpts = Object.entries(ACCENTS)
+                    .map(([id, a]) => `<button type="button" class="swatch ${prefs.theme.accent === id ? "active" : ""}" style="background:linear-gradient(145deg, ${a.a2}, ${a.a})" title="${a.label}" aria-label="${a.label}" onclick="setThemePart('accent','${id}')"></button>`)
+                    .join("");
+                const catRows = allCategories()
+                    .map(
+                        (c) => `
+                    <div class="cat-color-row">
+                        <div class="cat-color-name"><span class="cat-icon" style="background:${c.color}20;color:${c.color};width:28px;height:28px;font-size:13px">${escapeHtml(c.glyph)}</span>${escapeHtml(c.label)}</div>
+                        ${swatchRow(PALETTE, c.color, (col) => `setCategoryColorPref('${escapeHtml(c.name)}','${col}')`)}
+                    </div>`,
+                    )
+                    .join("");
+                return `
+                    <div class="section-eyebrow">Appearance</div>
+                    <div class="setting-block">
+                        <div class="info-label">Background</div>
+                        <div class="theme-grid">${bgOpts}</div>
+                    </div>
+                    <div class="setting-block">
+                        <div class="info-label">Secondary color</div>
+                        <div class="info-sub" style="margin-bottom:10px">Buttons, highlights and progress bars</div>
+                        <div class="swatches">${acOpts}</div>
+                    </div>
+                    <details class="setting-block">
+                        <summary class="info-label">Category colors</summary>
+                        <div style="margin-top:12px">${catRows}</div>
+                    </details>
+                    <button class="setting-row" onclick="resetAppearance()">
+                        <div class="info"><div class="info-label">Reset colors</div></div>
+                        <span class="arrow">↺</span>
+                    </button>`;
+            }
+
             // ============ DASHBOARD ============
             function cardBalance(card) {
                 const ops = state.carte.filter((c) => c.card === card);
@@ -2481,96 +2894,130 @@
                 const allCatTotals = {};
                 spending.forEach((d) => (allCatTotals[d.category] = (allCatTotals[d.category] || 0) + d.amount));
 
-                const p = document.getElementById("page-dashboard");
-                p.innerHTML = `
-                    <!-- Main card: total balance -->
+                // ----- Balance tiles (cash, each card, savings), in the user's order -----
+                const tileOrder = orderedTiles(bal);
+                const tileHTML = (key, idx) => {
+                    let label, sub, icon, color, valueId, click;
+                    if (key === "cash") [label, sub, icon, color, valueId] = ["Cash", "In hand", "💰", "var(--success)", "solde-cash"];
+                    else if (key === "savings") [label, sub, icon, color, valueId] = ["Savings", "Current balance", "✦", "var(--accent)", "solde-epargne"];
+                    else {
+                        const c = bal.cards.find((x) => "card:" + x.id === key);
+                        if (!c) return "";
+                        [label, sub, icon, color, valueId] = [c.name, "Card", "💳", cardColor(findCard(c.id) || c), "solde-card-" + bal.cards.indexOf(c)];
+                        click = `state.activeCard='${escapeHtml(c.id)}';showPage('carte')`;
+                    }
+                    const tools = dashEditing
+                        ? `<div class="tile-tools">
+                            <button onclick="moveTile('${escapeHtml(key)}',-1)" ${idx === 0 ? "disabled" : ""} aria-label="Move left">‹</button>
+                            <button onclick="moveTile('${escapeHtml(key)}',1)" ${idx === tileOrder.length - 1 ? "disabled" : ""} aria-label="Move right">›</button>
+                          </div>`
+                        : "";
+                    return `
+                        <div class="solde-card" ${!dashEditing && click ? `onclick="${click}" style="cursor:pointer"` : ""}>
+                            <div class="icon">${icon}</div>
+                            <div class="label">${escapeHtml(label)}</div>
+                            <div class="value" style="color:${color}"><span id="${valueId}">0.00</span><span class="unit">DT</span></div>
+                            <div class="sub">${sub}</div>
+                            ${tools}
+                        </div>`;
+                };
+
+                // ----- Each dashboard section -----
+                const sections = {
+                    hero: `
                     <div class="hero-card">
                         <div class="hero-label">Total balance</div>
                         <div class="hero-value"><span id="hero-total">0.00</span><span class="unit">DT</span></div>
                         <div class="hero-sub">
                             Spent in ${monthName}: ${fmt(monthTotal)} DT <span class="sep">·</span> ${fmt(avgDay)} DT/day
                         </div>
-                    </div>
-
-                    <!-- Grid: Cash, one tile per card, Savings -->
-                    <div class="soldes-grid">
-                        <div class="solde-card cash">
-                            <div class="icon">💰</div>
-                            <div class="label">Cash</div>
-                            <div class="value"><span id="solde-cash">0.00</span><span class="unit">DT</span></div>
-                            <div class="sub">In hand</div>
-                        </div>
-                        ${bal.cards
-                            .map(
-                                (c, i) => `
-                        <div class="solde-card" onclick="state.activeCard='${escapeHtml(c.id)}';showPage('carte')" style="cursor:pointer">
-                            <div class="icon">💳</div>
-                            <div class="label">${escapeHtml(c.name)}</div>
-                            <div class="value" style="color:${(CARD_STYLES[c.style] || CARD_STYLES.default).color}"><span id="solde-card-${i}">0.00</span><span class="unit">DT</span></div>
-                            <div class="sub">Card</div>
-                        </div>`,
-                            )
-                            .join("")}
-                        <div class="solde-card epargne">
-                            <div class="icon">✦</div>
-                            <div class="label">Savings</div>
-                            <div class="value"><span id="solde-epargne">0.00</span><span class="unit">DT</span></div>
-                            <div class="sub">Current balance</div>
-                        </div>
-                    </div>
-
-                    <!-- Breakdown -->
+                    </div>`,
+                    balances: `<div class="soldes-grid">${tileOrder.map(tileHTML).join("")}</div>`,
+                    breakdown: `
                     <div class="section-head">
                         <div class="section-title">Spending breakdown</div>
                         <select class="period-select" id="period-select" aria-label="Breakdown period">
                             ${PERIODS.map((pr) => `<option value="${pr.id}" ${pr.id === breakdownPeriod ? "selected" : ""}>${pr.label}</option>`).join("")}
                         </select>
                     </div>
-                    <div class="repart" id="breakdown"></div>
-
-                    <!-- Goals -->
-                    ${
-                        featuresReady
-                            ? `<div class="section-head">
+                    <div class="repart" id="breakdown"></div>`,
+                    goals: featuresReady
+                        ? `
+                    <div class="section-head">
                         <div class="section-title">Goals</div>
-                        ${state.goals.length ? `<button class="small-btn" onclick="openGoalEditor()">+ Add goal</button>` : ""}
-                    </div>`
-                            : ""
-                    }
-                    <div id="goals"></div>
-
-                    <!-- Insights -->
+                        ${state.goals.length && !dashEditing ? `<button class="small-btn" onclick="openGoalEditor()">+ Add goal</button>` : ""}
+                    </div>
+                    <div id="goals"></div>`
+                        : "",
+                    insights: `
                     <div class="section-title">What I notice</div>
-                    <div id="insights"></div>
-                `;
+                    <div id="insights"></div>`,
+                };
 
-                animateNumber(document.getElementById("hero-total"), 0, bal.total);
-                animateNumber(document.getElementById("solde-cash"), 0, bal.cash);
-                bal.cards.forEach((c, i) => animateNumber(document.getElementById("solde-card-" + i), 0, c.balance));
-                animateNumber(document.getElementById("solde-epargne"), 0, bal.savings);
+                const visible = prefs.layout.filter((id) => sections[id] && (dashEditing || !prefs.hidden.includes(id)));
+                const body = visible
+                    .map((id, i) => {
+                        const hidden = prefs.hidden.includes(id);
+                        const tools = dashEditing
+                            ? `<div class="sec-tools">
+                                <span class="sec-name">${DASH_SECTIONS[id]}</span>
+                                <button onclick="moveSection('${id}',-1)" ${i === 0 ? "disabled" : ""} aria-label="Move up">↑</button>
+                                <button onclick="moveSection('${id}',1)" ${i === visible.length - 1 ? "disabled" : ""} aria-label="Move down">↓</button>
+                                <button onclick="toggleSection('${id}')" class="sec-hide">${hidden ? "Show" : "Hide"}</button>
+                              </div>`
+                            : "";
+                        return `<section class="dash-sec ${dashEditing ? "editing" : ""} ${hidden ? "is-hidden" : ""}" data-sec="${id}">${tools}${sections[id]}</section>`;
+                    })
+                    .join("");
+
+                const top = dashEditing
+                    ? `<div class="dash-top editing">
+                        <span class="dash-hint">Move sections with ↑ ↓, tiles with ‹ ›</span>
+                        <button class="small-btn" onclick="resetDashboard()">Reset</button>
+                        <button class="small-btn primary" onclick="toggleDashEdit()">Done</button>
+                      </div>`
+                    : `<div class="dash-top"><button class="pen-btn" onclick="toggleDashEdit()" aria-label="Customize dashboard" title="Customize dashboard">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                      </button></div>`;
+
+                const p = document.getElementById("page-dashboard");
+                p.innerHTML = top + body;
+
+                const anim = (id, v) => {
+                    const el = document.getElementById(id);
+                    if (el) animateNumber(el, 0, v);
+                };
+                anim("hero-total", bal.total);
+                anim("solde-cash", bal.cash);
+                bal.cards.forEach((c, i) => anim("solde-card-" + i, c.balance));
+                anim("solde-epargne", bal.savings);
                 renderGoals();
 
-                document.getElementById("period-select").onchange = (e) => {
-                    vibrate(30);
-                    breakdownPeriod = e.target.value;
-                    try {
-                        localStorage.setItem(PERIOD_KEY, breakdownPeriod);
-                    } catch (_) {}
+                const periodSel = document.getElementById("period-select");
+                if (periodSel) {
+                    periodSel.onchange = (e) => {
+                        vibrate(30);
+                        breakdownPeriod = e.target.value;
+                        try {
+                            localStorage.setItem(PERIOD_KEY, breakdownPeriod);
+                        } catch (_) {}
+                        renderBreakdown(spending);
+                    };
                     renderBreakdown(spending);
-                };
-                renderBreakdown(spending);
+                }
 
-                // Insights
+                // Insights: neutral, about the user's own numbers only
                 const ins = document.getElementById("insights");
+                if (!ins) return;
                 const insights = [];
-                if (avgDay > 20) insights.push({ type: "bad", text: `You spend ${fmt(avgDay)} DT/day on average. That's more than a week's rent.` });
-                else if (avgDay > 15) insights.push({ type: "warn", text: `Around ${fmt(avgDay)} DT/day. Two or three fewer orders a week would make a real difference.` });
+                if (avgDay > 20) insights.push({ type: "bad", text: `You spend ${fmt(avgDay)} DT/day on average this month. At that pace it's about ${fmtInt(avgDay * 30)} DT a month.` });
+                else if (avgDay > 15) insights.push({ type: "warn", text: `Around ${fmt(avgDay)} DT/day. Skipping a couple of small purchases a week would make a real difference.` });
                 else if (avgDay > 0 && avgDay <= 10) insights.push({ type: "good", text: `Under 10 DT/day on average. Well kept.` });
                 const delivery = allCatTotals["Livraison"] || 0;
                 const food = allCatTotals["Bouffe"] || 0;
-                if (delivery > food * 2 && delivery > 60) insights.push({ type: "warn", text: `Delivery is well above in-store food. It's the first lever to free up savings.` });
+                if (delivery > food * 2 && delivery > 60) insights.push({ type: "warn", text: `Delivery costs more than twice your in-store food. It's the easiest place to save.` });
                 if (bal.savings >= 100) insights.push({ type: "good", text: `${fmt(bal.savings)} DT set aside so far. The momentum is there.` });
-                else if (bal.savings < 30) insights.push({ type: "warn", text: `Savings are still low. Short-term goal: 10 DT every time money comes in.` });
+                else if (bal.savings < 30) insights.push({ type: "warn", text: `Savings are still low. A simple habit: put a little aside every time money comes in.` });
                 if (!insights.length) insights.push({ type: "good", text: `Nothing special to report for now. Keep tracking.` });
                 insights.forEach((i, idx) => {
                     const div = document.createElement("div");
@@ -2584,6 +3031,7 @@
             // Donut chart + list of spending per category for the selected period
             function renderBreakdown(spending) {
                 const el = document.getElementById("breakdown");
+                if (!el) return;
                 const totals = {};
                 spending.filter((d) => inPeriod(d.date, breakdownPeriod)).forEach((d) => (totals[d.category] = (totals[d.category] || 0) + d.amount));
                 const entries = Object.entries(totals)
@@ -2671,14 +3119,16 @@
             // ============ CARDS ============
             // Look of each card style. "custom" uses the image the user uploaded.
             const CARD_STYLES = {
-                default: { label: "Carnet", color: "var(--accent)", gradient: "linear-gradient(160deg, #1d1a12 0%, #0f110e 100%)", border: "#2f2a1c" },
-                techno: { label: "Technologique", img: "images/techno.png", color: "var(--violet)", gradient: "linear-gradient(160deg, #1D1425 0%, #10131C 100%)", border: "#2A2035" },
-                d17: { label: "D17", img: "images/d17.png", color: "var(--success)", gradient: "linear-gradient(160deg, #1A2419 0%, #0F1913 100%)", border: "#1F3025" },
-                custom: { label: "My image", color: "var(--accent)", gradient: "linear-gradient(160deg, var(--surface) 0%, var(--bg-2) 100%)", border: "var(--border)" },
+                default: { label: "Carnet", color: "#C4A85C", gradient: "linear-gradient(160deg, #1d1a12 0%, #0f110e 100%)", border: "#2f2a1c" },
+                techno: { label: "Technologique", img: "images/techno.png", color: "#9B87BE", gradient: "linear-gradient(160deg, #1D1425 0%, #10131C 100%)", border: "#2A2035" },
+                d17: { label: "D17", img: "images/d17.png", color: "#6DB89B", gradient: "linear-gradient(160deg, #1A2419 0%, #0F1913 100%)", border: "#1F3025" },
+                custom: { label: "My image", color: "#C4A85C", gradient: "linear-gradient(160deg, var(--surface) 0%, var(--bg-2) 100%)", border: "var(--border)" },
             };
 
             const findCard = (id) => state.cards.find((c) => c.id === id);
             const cardName = (id) => findCard(id)?.name || id || "—";
+            // The card's chosen color, or the default color of its look
+            const cardColor = (card) => (card && isColor(card.color) ? card.color : (CARD_STYLES[card?.style] || CARD_STYLES.default).color);
 
             // The picture of a card: preset image, uploaded image, or the default dark Carnet card
             function cardFace(card) {
@@ -2718,6 +3168,7 @@
                 }
 
                 const st = CARD_STYLES[card.style] || CARD_STYLES.default;
+                const color = cardColor(card);
                 const ops = state.carte.filter((c) => c.card === card.id);
                 const balance = cardBalance(card.id);
                 const fxSpent = ops.filter((c) => c.type === "Achat" && c.currency !== "DT").reduce((s, c) => s + c.total_dt, 0);
@@ -2725,12 +3176,12 @@
 
                 p.innerHTML = `
                     ${selector}
-                    <div class="carte-hero" style="background:${st.gradient};border-color:${st.border}">
+                    <div class="carte-hero" style="background:linear-gradient(160deg, ${color}26 0%, var(--bg-2) 70%);border-color:${color}40">
                         <div class="hero-label" style="display:flex;justify-content:space-between;align-items:center;gap:8px">
                             <span>${escapeHtml(card.name)}</span>
                             <button class="card-edit-btn" onclick="openCardEditor('${escapeHtml(card.id)}')">Edit</button>
                         </div>
-                        <div class="hero-value" style="color:${st.color}"><span class="carte-solde-val">0.00</span><span class="unit">DT</span></div>
+                        <div class="hero-value" style="color:${color}"><span class="carte-solde-val">0.00</span><span class="unit">DT</span></div>
                         <div class="hero-sub">${ops.length} operation${ops.length === 1 ? "" : "s"}${card.fx ? " · USD / EUR allowed" : ""}</div>
                         ${
                             limit
@@ -2770,6 +3221,19 @@
             // ----- Card editor (add / edit / delete) -----
             let editingCard = null; // card id being edited, or null for a new card
             let cardDraftImage = null; // uploaded image (data URL) for the "custom" style
+            let cardDraftColor = null; // color picked from PALETTE
+
+            function renderCardColors() {
+                const el = document.getElementById("card-colors");
+                el.innerHTML = PALETTE.map((c) => `<button type="button" class="swatch ${c.toLowerCase() === (cardDraftColor || "").toLowerCase() ? "active" : ""}" style="background:${c}" aria-label="Color ${c}"></button>`).join("");
+                el.querySelectorAll(".swatch").forEach((b, i) => {
+                    b.onclick = () => {
+                        vibrate(25);
+                        cardDraftColor = PALETTE[i];
+                        renderCardColors();
+                    };
+                });
+            }
 
             function openCardEditor(id) {
                 vibrate(35);
@@ -2782,6 +3246,11 @@
                 document.getElementById("card-fx-limit").value = card?.fx_limit || "";
                 document.getElementById("card-delete-row").style.display = card ? "flex" : "none";
                 document.getElementById("card-file").value = "";
+                // new card: first palette color no other card uses yet, so dashboard tiles differ
+                const used = state.cards.map((c) => cardColor(c).toLowerCase());
+                cardDraftColor = card ? cardColor(card) : PALETTE.find((c) => !used.includes(c.toLowerCase())) || PALETTE[0];
+                document.getElementById("card-color-field").style.display = prefsReady ? "block" : "none";
+                renderCardColors();
                 setCardStyle(card?.style || "default");
                 onCardFxChange();
                 document.getElementById("card-modal-backdrop").classList.add("open");
@@ -2860,6 +3329,8 @@
                     fx,
                     fx_limit: fx && limitVal > 0 ? limitVal : null,
                 };
+                // the color column exists only once supabase/005_card_colors_prefs.sql has been run
+                if (prefsReady) card.color = isColor(cardDraftColor) ? cardDraftColor : null;
                 if (existing) Object.assign(existing, card);
                 else state.cards.push({ ...card, created_at: new Date().toISOString() });
                 state.activeCard = card.id;
@@ -3538,6 +4009,8 @@
                         <span class="arrow">↗</span>
                     </a>
 
+                    ${prefsReady ? appearanceSettingsHTML() : ""}
+
                     ${
                         featuresReady
                             ? `<div class="section-eyebrow">Categories</div>
@@ -3739,6 +4212,7 @@
             }
 
             // ============ INIT ============
+            loadCachedPrefs();
             initAuth();
             document.getElementById("modal-backdrop").addEventListener("click", (e) => {
                 if (e.target.id === "modal-backdrop") closeModal();
