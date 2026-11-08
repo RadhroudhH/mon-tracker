@@ -18,7 +18,7 @@ The PIN never protected the database. It only hid the screen.
 1. **Back up.** Export to Excel from the current site. JSON copies from 2026-11-08 are also in `backups/`, which git ignores.
 
 2. **Configure Supabase Auth** in Dashboard → Authentication:
-   - **URL Configuration** → Site URL: the live address, e.g. `https://radhroudhh.github.io/mon-tracker/`. Add the same address under *Redirect URLs*.
+   - **URL Configuration** → Site URL: `https://carnet-tracker-radhi.vercel.app`. Under *Redirect URLs* add `https://carnet-tracker-radhi.vercel.app/**` (and keep the old `https://r2a0d0h6i-tracker.vercel.app/**` for a while; Vercel redirects it to the new one).
    - **Sign In / Providers** → Email: enabled, *Confirm email* on, and *Allow new users to sign up* **on for now**.
 
 3. **Deploy the new code** by committing and pushing to `main`. GitHub Pages updates in about a minute.
