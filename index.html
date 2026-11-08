@@ -224,11 +224,35 @@
                 opacity: 1;
             }
 
-            .header {
-                padding: 20px 22px 8px;
+            .topbar {
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
+                gap: 12px;
+                padding-bottom: 12px;
+                margin-bottom: 12px;
+                border-bottom: 1px solid var(--border);
+            }
+            .topbar-hello {
+                font-family: var(--font-display);
+                font-style: italic;
+                font-weight: 300;
+                font-size: 17px;
+                color: var(--text-2);
+                min-width: 0;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                text-align: left;
+                touch-action: manipulation;
+            }
+            .topbar-hello span {
+                color: var(--accent);
+            }
+            .header {
+                padding: 16px 22px 8px;
+                display: flex;
+                flex-direction: column;
                 position: sticky;
                 top: 0;
                 z-index: 20;
@@ -1149,6 +1173,45 @@
             .welcome.leave {
                 animation: fadeOut 0.5s var(--ease) forwards;
             }
+            .welcome-go {
+                position: absolute;
+                top: calc(50% + clamp(46px, 11vw, 66px));
+                left: 50%;
+                transform: translateX(-50%);
+                padding: 13px 28px;
+                border-radius: 999px;
+                background: linear-gradient(145deg, var(--accent-2), var(--accent));
+                color: var(--bg);
+                font-weight: 600;
+                font-size: 14px;
+                letter-spacing: 0.04em;
+                white-space: nowrap;
+                box-shadow: 0 12px 40px color-mix(in srgb, var(--accent) 35%, transparent);
+                opacity: 0;
+                pointer-events: none;
+                touch-action: manipulation;
+            }
+            .welcome.play .welcome-go {
+                animation: welcomeGo 0.6s var(--ease-back) 2.5s forwards;
+            }
+            @keyframes welcomeGo {
+                from { opacity: 0; transform: translate(-50%, 14px) scale(0.9); }
+                to { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+            }
+            .welcome-go:active {
+                filter: brightness(1.1);
+            }
+            .fx-layer {
+                position: fixed;
+                inset: 0;
+                z-index: 310;
+                pointer-events: none;
+                overflow: hidden;
+                perspective: 1300px;
+            }
+            .topbar .header-actions {
+                flex-shrink: 0;
+            }
             @keyframes welcomeIn {
                 from { opacity: 0; transform: translateY(6px); }
                 to { opacity: 1; transform: none; }
@@ -1932,7 +1995,8 @@
         <!-- ============ APP ============ -->
         <div id="app">
             <div class="header">
-                <h1 id="page-title">Overview</h1>
+              <div class="topbar">
+                <button class="topbar-hello" onclick="openUsernameEditor(false)" title="Change username">Welcome<span id="topbar-name"></span></button>
                 <div class="header-actions">
                     <div class="sync-indicator" id="sync-indicator">
                         <span class="dot"></span>
@@ -1952,6 +2016,8 @@
                         </svg>
                     </button>
                 </div>
+              </div>
+                <h1 id="page-title">Overview</h1>
             </div>
 
             <div class="tabs" id="tabs-container">
@@ -2067,9 +2133,10 @@
         </div>
 
         <!-- Welcome animation -->
-        <div class="welcome" id="welcome" onclick="endWelcome()">
+        <div class="welcome" id="welcome">
             <div class="welcome-word">Welcome</div>
             <div class="welcome-name" id="welcome-name"></div>
+            <button class="welcome-go" id="welcome-go" onclick="goToCarnet(event)">Go to Carnet</button>
         </div>
 
         <!-- Username -->
@@ -2432,8 +2499,14 @@
                 render();
                 initSwipe();
                 // Accounts made before usernames existed pick one first, then get the welcome
-                if (getUsername()) playWelcome();
-                else openUsernameEditor(true);
+                updateHello();
+                if (!getUsername()) openUsernameEditor(true);
+                else if (prefs.greeting) playWelcome();
+            }
+
+            function updateHello() {
+                const n = getUsername();
+                document.getElementById("topbar-name").textContent = n ? ", " + n : "";
             }
 
             // ----- Username (stored in the account's user_metadata, no table needed) -----
@@ -2465,29 +2538,345 @@
                 const wasFirst = usernameFirstTime;
                 usernameFirstTime = false;
                 closeUsernameEditor();
+                updateHello();
                 if (currentPage === "settings") renderSettings();
-                if (wasFirst) setTimeout(playWelcome, 350);
-                else toast("Username saved");
+                if (wasFirst && prefs.greeting) setTimeout(playWelcome, 350);
+                else if (!wasFirst) toast("Username saved");
             }
 
-            // ----- Welcome: "Welcome" fades in and out (0.5 s each), then the username in the accent color -----
-            let welcomeTimers = [];
+            // ----- Welcome: "Welcome" fades in and out (0.5 s each), then the username in the accent color,
+            // then a "Go to Carnet" button one second later -----
+            let welcomeBusy = false;
             function playWelcome() {
                 const el = document.getElementById("welcome");
                 document.getElementById("welcome-name").textContent = getUsername();
+                el.style.cssText = "";
                 el.classList.remove("play", "leave");
                 void el.offsetWidth; // restart the animation
                 el.classList.add("show", "play");
-                welcomeTimers = [setTimeout(endWelcome, 2400)];
+                welcomeBusy = false;
             }
 
             function endWelcome() {
                 const el = document.getElementById("welcome");
-                if (!el.classList.contains("show") || el.classList.contains("leave")) return;
-                welcomeTimers.forEach(clearTimeout);
                 el.classList.add("leave");
-                welcomeTimers = [setTimeout(() => el.classList.remove("show", "play", "leave"), 500)];
+                setTimeout(() => closeWelcome(), 500);
             }
+
+            function closeWelcome() {
+                const el = document.getElementById("welcome");
+                el.classList.remove("show", "play", "leave");
+                el.style.cssText = "";
+                // drop what the transitions left on the welcome screen (but not its own CSS animations)
+                el.getAnimations({ subtree: true }).forEach((a) => typeof CSSAnimation !== "undefined" && a instanceof CSSAnimation ? null : a.cancel());
+                welcomeBusy = false;
+            }
+
+            function goToCarnet(e) {
+                if (welcomeBusy) return;
+                welcomeBusy = true;
+                vibrate(40);
+                // the switches in Settings → Preferences → Animations decide (not the OS motion setting)
+                if (!prefs.transition) return endWelcome();
+                const r = e.currentTarget.getBoundingClientRect();
+                const o = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+                // a different transition every time
+                const names = Object.keys(TRANSITIONS);
+                let last = null;
+                try {
+                    last = localStorage.getItem("carnet-last-fx");
+                } catch (_) {}
+                const pool = names.filter((n) => n !== last);
+                const pick = pool[Math.floor(Math.random() * pool.length)];
+                try {
+                    localStorage.setItem("carnet-last-fx", pick);
+                } catch (_) {}
+                const layer = document.createElement("div");
+                layer.className = "fx-layer";
+                document.body.appendChild(layer);
+                const done = (ms) =>
+                    setTimeout(() => {
+                        layer.remove();
+                        closeWelcome();
+                    }, ms);
+                TRANSITIONS[pick](layer, o, done);
+            }
+
+            // ----- Transition helpers -----
+            const rand = (a, b) => a + Math.random() * (b - a);
+            const cssVar = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+            const fxColors = () => [cssVar("--accent"), cssVar("--accent-2"), ...PALETTE];
+
+            // The dashboard arrives: the app settles into place, then each section pops in one after the other
+            function enterApp(delay, from) {
+                const app = document.getElementById("app");
+                app.animate([from || { transform: "scale(1.12)", filter: "blur(12px)", opacity: 0.15 }, { transform: "none", filter: "blur(0)", opacity: 1 }], { duration: 900, delay, easing: "cubic-bezier(.22,1,.36,1)", fill: "backwards" });
+                const page = document.getElementById("page-" + currentPage);
+                [...(page?.children || [])].slice(0, 8).forEach((c, i) =>
+                    c.animate([{ transform: "translateY(26px) scale(.96)", opacity: 0 }, { transform: "none", opacity: 1 }], { duration: 700, delay: delay + 250 + i * 80, easing: "cubic-bezier(.34,1.56,.64,1)", fill: "backwards" }),
+                );
+            }
+
+            // Fade the words and the button out from wherever their own animation left them
+            function fadeWelcomeText(w, to, duration) {
+                w.querySelectorAll("div,button").forEach((n) => {
+                    const cs = getComputedStyle(n);
+                    const end = n.tagName === "BUTTON" && to.transform ? { ...to, transform: "translateX(-50%) " + to.transform } : to; // the button is centered with a translate
+                    n.animate([{ opacity: cs.opacity, transform: cs.transform }, end], { duration, fill: "forwards", easing: "ease-in" });
+                });
+            }
+
+            // A copy of the welcome screen, used as the material that breaks apart
+            function welcomeClone(layer) {
+                const src = document.getElementById("welcome");
+                const c = src.cloneNode(true);
+                c.removeAttribute("id");
+                c.querySelectorAll("[id]").forEach((n) => n.removeAttribute("id"));
+                c.classList.remove("play");
+                c.style.position = "absolute";
+                c.querySelector(".welcome-name").style.opacity = 1;
+                c.querySelector(".welcome-go").style.opacity = 0;
+                layer.appendChild(c);
+                return c;
+            }
+
+            function fxCanvas(layer) {
+                const cv = document.createElement("canvas");
+                const dpr = Math.min(2, devicePixelRatio || 1);
+                cv.width = innerWidth * dpr;
+                cv.height = innerHeight * dpr;
+                cv.style.cssText = "position:absolute;inset:0;width:100%;height:100%";
+                layer.appendChild(cv);
+                const ctx = cv.getContext("2d");
+                ctx.scale(dpr, dpr);
+                return ctx;
+            }
+
+            function frames(ms, fn) {
+                const t0 = performance.now();
+                const step = (now) => {
+                    const t = Math.min(1, (now - t0) / ms);
+                    fn(t, now - t0);
+                    if (t < 1) requestAnimationFrame(step);
+                };
+                requestAnimationFrame(step);
+            }
+
+            const TRANSITIONS = {
+                // Hyperspace: stars stretch into light streaks, a flash, and the dashboard rushes in
+                warp(layer, o, done) {
+                    const w = document.getElementById("welcome");
+                    fadeWelcomeText(w, { opacity: 0, transform: "scale(1.6)", filter: "blur(6px)" }, 450);
+                    const ctx = fxCanvas(layer);
+                    const W = innerWidth,
+                        H = innerHeight,
+                        cx = W / 2,
+                        cy = H / 2,
+                        bg = cssVar("--bg"),
+                        cols = [cssVar("--accent"), cssVar("--accent-2"), "#ffffff"];
+                    const stars = Array.from({ length: 320 }, () => ({ a: rand(0, Math.PI * 2), d: rand(4, Math.max(W, H) * 0.5), c: cols[Math.floor(Math.random() * 3)], w: rand(0.6, 2.2) }));
+                    let last = 0;
+                    frames(1300, (t, el) => {
+                        const dt = el - last;
+                        last = el;
+                        ctx.globalAlpha = 0.35;
+                        ctx.fillStyle = bg;
+                        ctx.fillRect(0, 0, W, H);
+                        ctx.globalAlpha = 1;
+                        const speed = 0.02 + t * t * 2.6;
+                        stars.forEach((s) => {
+                            const d0 = s.d;
+                            s.d += s.d * speed * dt * 0.06 + 0.4;
+                            ctx.strokeStyle = s.c;
+                            ctx.lineWidth = s.w * (1 + t * 2);
+                            ctx.beginPath();
+                            ctx.moveTo(cx + Math.cos(s.a) * d0, cy + Math.sin(s.a) * d0);
+                            ctx.lineTo(cx + Math.cos(s.a) * s.d, cy + Math.sin(s.a) * s.d);
+                            ctx.stroke();
+                            if (s.d > Math.max(W, H)) s.d = rand(2, 30);
+                        });
+                    });
+                    const flash = document.createElement("div");
+                    flash.style.cssText = `position:absolute;inset:0;background:radial-gradient(circle, #fff, ${cssVar("--accent")} 45%, transparent 75%)`;
+                    layer.appendChild(flash);
+                    flash.animate([{ opacity: 0 }, { opacity: 0, offset: 0.72 }, { opacity: 1, offset: 0.82 }, { opacity: 0 }], { duration: 1700, fill: "forwards" });
+                    layer.animate([{ opacity: 1 }, { opacity: 1, offset: 0.75 }, { opacity: 0 }], { duration: 1700, fill: "forwards" });
+                    setTimeout(() => (w.style.opacity = 0), 1250);
+                    enterApp(1250, { transform: "scale(1.6)", filter: "blur(16px)", opacity: 0 });
+                    done(1750);
+                },
+
+                // Shatter: the welcome screen cracks into glass shards that explode away from the button
+                shatter(layer, o, done) {
+                    const w = document.getElementById("welcome");
+                    const cols = 6,
+                        rows = 9,
+                        cw = 100 / cols,
+                        rh = 100 / rows;
+                    const base = welcomeClone(layer);
+                    base.remove();
+                    for (let i = 0; i < cols; i++)
+                        for (let j = 0; j < rows; j++)
+                            for (let k = 0; k < 2; k++) {
+                                const x0 = i * cw,
+                                    y0 = j * rh,
+                                    x1 = x0 + cw,
+                                    y1 = y0 + rh;
+                                const poly = k ? `${x0}% ${y0}%, ${x1}% ${y0}%, ${x1}% ${y1}%` : `${x0}% ${y0}%, ${x0}% ${y1}%, ${x1}% ${y1}%`;
+                                const s = base.cloneNode(true);
+                                s.style.clipPath = `polygon(${poly})`;
+                                s.style.backdropFilter = s.style.webkitBackdropFilter = "none";
+                                // each shard catches the light a little differently, so the glass reads as pieces
+                                s.style.background = `linear-gradient(${rand(0, 360)}deg, color-mix(in srgb, ${cssVar("--accent")} ${rand(6, 26)}%, ${cssVar("--bg")}), ${cssVar("--bg")} 70%)`;
+                                layer.appendChild(s);
+                                const px = ((x0 + cw / 2) / 100) * innerWidth,
+                                    py = ((y0 + rh / 2) / 100) * innerHeight;
+                                const dx = px - o.x,
+                                    dy = py - o.y,
+                                    dist = Math.hypot(dx, dy) || 1;
+                                const push = rand(500, 1100);
+                                s.animate(
+                                    [
+                                        { transform: "none", opacity: 1 },
+                                        { transform: `translate3d(${(dx / dist) * 6}px, ${(dy / dist) * 6}px, 0)`, opacity: 1, offset: 0.12 },
+                                        { transform: `translate3d(${(dx / dist) * push}px, ${(dy / dist) * push + 300}px, ${rand(-400, 300)}px) rotate3d(${rand(-1, 1)}, ${rand(-1, 1)}, ${rand(-1, 1)}, ${rand(180, 540)}deg) scale(.5)`, opacity: 0 },
+                                    ],
+                                    { duration: rand(1000, 1500), delay: 120 + dist * 0.35, easing: "cubic-bezier(.3,.1,.3,1)", fill: "both" },
+                                );
+                            }
+                    w.style.opacity = 0;
+                    const crack = document.createElement("div");
+                    crack.style.cssText = `position:absolute;inset:0;background:radial-gradient(circle at ${o.x}px ${o.y}px, #fff, ${cssVar("--accent-2")} 12%, transparent 40%)`;
+                    layer.appendChild(crack);
+                    crack.animate([{ opacity: 0.95 }, { opacity: 0 }], { duration: 450, easing: "ease-out", fill: "both" });
+                    enterApp(250);
+                    done(2000);
+                },
+
+                // Iris: a growing hole opens from the button, chased by shockwave rings and sparks
+                iris(layer, o, done) {
+                    const w = document.getElementById("welcome");
+                    fadeWelcomeText(w, { opacity: 0, transform: "scale(.8)" }, 300);
+                    const max = Math.hypot(Math.max(o.x, innerWidth - o.x), Math.max(o.y, innerHeight - o.y)) + 60;
+                    frames(1100, (t) => {
+                        const e = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+                        const R = e * max;
+                        const m = `radial-gradient(circle at ${o.x}px ${o.y}px, transparent ${R}px, #000 ${R + 2}px)`;
+                        w.style.webkitMaskImage = w.style.maskImage = m;
+                    });
+                    [0, 140, 280].forEach((d, i) => {
+                        const ring = document.createElement("div");
+                        ring.style.cssText = `position:absolute;left:${o.x - 50}px;top:${o.y - 50}px;width:100px;height:100px;border-radius:50%;border:${3 - i}px solid ${i === 1 ? cssVar("--accent-2") : cssVar("--accent")};box-shadow:0 0 30px ${cssVar("--accent")}`;
+                        layer.appendChild(ring);
+                        ring.animate([{ transform: "scale(0)", opacity: 1 }, { transform: `scale(${(max * 2.2) / 100})`, opacity: 0 }], { duration: 1200, delay: d, easing: "cubic-bezier(.2,.7,.3,1)", fill: "both" });
+                    });
+                    const cols = fxColors();
+                    for (let i = 0; i < 46; i++) {
+                        const p = document.createElement("div");
+                        const sz = rand(3, 8),
+                            a = rand(0, Math.PI * 2),
+                            d = rand(120, 480);
+                        p.style.cssText = `position:absolute;left:${o.x}px;top:${o.y}px;width:${sz}px;height:${sz}px;border-radius:50%;background:${cols[i % cols.length]};box-shadow:0 0 12px ${cols[i % cols.length]}`;
+                        layer.appendChild(p);
+                        p.animate([{ transform: "translate(-50%,-50%)", opacity: 1 }, { transform: `translate(${Math.cos(a) * d}px, ${Math.sin(a) * d}px) scale(.2)`, opacity: 0 }], { duration: rand(700, 1300), easing: "cubic-bezier(.1,.8,.3,1)", fill: "both" });
+                    }
+                    enterApp(150, { transform: "scale(.9)", filter: "blur(8px)", opacity: 0.4 });
+                    done(1450);
+                },
+
+                // Grand doors: a line of light splits the screen and two heavy doors swing open in 3D
+                doors(layer, o, done) {
+                    const w = document.getElementById("welcome");
+                    const seam = document.createElement("div");
+                    seam.style.cssText = `position:absolute;left:50%;top:0;bottom:0;width:3px;margin-left:-1.5px;background:${cssVar("--accent-2")};box-shadow:0 0 24px 6px ${cssVar("--accent")};z-index:2`;
+                    const L = welcomeClone(layer),
+                        R = welcomeClone(layer);
+                    L.style.clipPath = "inset(0 50% 0 0)";
+                    R.style.clipPath = "inset(0 0 0 50%)";
+                    // solid doors with a gold edge where they meet
+                    const bg2 = cssVar("--bg-2"),
+                        tint = `color-mix(in srgb, ${cssVar("--accent")} 22%, ${cssVar("--bg")})`,
+                        edge = cssVar("--accent");
+                    L.style.background = `linear-gradient(to right, ${bg2}, ${tint} calc(50% - 3px), ${edge} calc(50% - 3px))`;
+                    R.style.background = `linear-gradient(to left, ${bg2}, ${tint} calc(50% - 3px), ${edge} calc(50% - 3px))`;
+                    [L, R].forEach((d) => (d.style.backdropFilter = d.style.webkitBackdropFilter = "none"));
+                    L.style.transformOrigin = "left center";
+                    R.style.transformOrigin = "right center";
+                    layer.appendChild(seam);
+                    w.style.opacity = 0;
+                    seam.animate([{ transform: "scaleY(0)", opacity: 1 }, { transform: "scaleY(1)", opacity: 1, offset: 0.4 }, { transform: "scaleY(1) scaleX(8)", opacity: 0 }], { duration: 700, fill: "both" });
+                    const opts = { duration: 1300, delay: 380, easing: "cubic-bezier(.7,0,.25,1)", fill: "both" };
+                    L.animate([{ transform: "none" }, { transform: "rotateY(-8deg)", offset: 0.15 }, { transform: "translateZ(80px) rotateY(105deg)", opacity: 0.2 }], opts);
+                    R.animate([{ transform: "none" }, { transform: "rotateY(8deg)", offset: 0.15 }, { transform: "translateZ(80px) rotateY(-105deg)", opacity: 0.2 }], opts);
+                    enterApp(450, { transform: "scale(.82) translateZ(0)", filter: "blur(10px)", opacity: 0 });
+                    done(1750);
+                },
+
+                // Confetti cannon: a burst of colors from the button while the welcome screen flies up
+                confetti(layer, o, done) {
+                    const w = document.getElementById("welcome");
+                    w.animate([{ transform: "none" }, { transform: "translateY(4%) scale(.98)", offset: 0.2 }, { transform: "translateY(-105%)", filter: "blur(4px)" }], { duration: 900, delay: 120, easing: "cubic-bezier(.6,0,.3,1)", fill: "forwards" });
+                    const ctx = fxCanvas(layer);
+                    const cols = fxColors();
+                    const bits = Array.from({ length: 220 }, () => {
+                        const a = rand(-Math.PI, 0),
+                            v = rand(6, 19);
+                        return { x: o.x, y: o.y, vx: Math.cos(a) * v * rand(0.4, 1.3), vy: Math.sin(a) * v, r: rand(0, 6), vr: rand(-0.3, 0.3), w: rand(5, 11), h: rand(3, 7), c: cols[Math.floor(Math.random() * cols.length)], round: Math.random() < 0.3 };
+                    });
+                    frames(2300, (t) => {
+                        ctx.clearRect(0, 0, innerWidth, innerHeight);
+                        ctx.globalAlpha = t > 0.75 ? (1 - t) / 0.25 : 1;
+                        bits.forEach((b) => {
+                            b.vy += 0.32;
+                            b.vx *= 0.985;
+                            b.x += b.vx;
+                            b.y += b.vy;
+                            b.r += b.vr;
+                            ctx.save();
+                            ctx.translate(b.x, b.y);
+                            ctx.rotate(b.r);
+                            ctx.scale(1, Math.cos(b.r * 2));
+                            ctx.fillStyle = b.c;
+                            if (b.round) {
+                                ctx.beginPath();
+                                ctx.arc(0, 0, b.h * 0.8, 0, Math.PI * 2);
+                                ctx.fill();
+                            } else ctx.fillRect(-b.w / 2, -b.h / 2, b.w, b.h);
+                            ctx.restore();
+                        });
+                    });
+                    enterApp(350, { transform: "translateY(60px) scale(.94)", filter: "blur(6px)", opacity: 0 });
+                    done(2350);
+                },
+
+                // Ribbons: diagonal bands of color sweep across the screen, then sweep away onto the dashboard
+                ribbons(layer, o, done) {
+                    const w = document.getElementById("welcome");
+                    const band = document.createElement("div");
+                    band.style.cssText = "position:absolute;left:-50%;top:-50%;width:200%;height:200%;display:flex;flex-direction:column;transform:rotate(-14deg)";
+                    layer.appendChild(band);
+                    const cols = [cssVar("--accent"), PALETTE[4], cssVar("--accent-2"), PALETTE[7], PALETTE[3], cssVar("--accent-dim"), PALETTE[9], PALETTE[5]];
+                    const n = 14;
+                    for (let i = 0; i < n; i++) {
+                        const b = document.createElement("div");
+                        b.style.cssText = `flex:1;margin:-1px 0;background:${cols[i % cols.length]}`;
+                        band.appendChild(b);
+                        const dir = i % 2 ? -1 : 1;
+                        b.animate(
+                            [
+                                { transform: `translateX(${dir * -110}%)`, easing: "cubic-bezier(.6,0,.2,1)" },
+                                { transform: "translateX(0)", offset: 0.42 },
+                                { transform: "translateX(0)", offset: 0.55, easing: "cubic-bezier(.7,0,.3,1)" },
+                                { transform: `translateX(${dir * 110}%)` },
+                            ],
+                            { duration: 1500, delay: Math.abs(i - n / 2) * 45, fill: "both" },
+                        );
+                    }
+                    setTimeout(() => (w.style.opacity = 0), 750);
+                    enterApp(820, { transform: "scale(1.06) rotate(-1.5deg)", filter: "blur(6px)", opacity: 0.2 });
+                    done(2000);
+                },
+            };
 
             async function initAuth() {
                 document.getElementById("auth-form").addEventListener("submit", onAuthSubmit);
@@ -3039,7 +3428,7 @@
             };
 
             const DASH_SECTIONS = { hero: "Total balance", balances: "Cash, cards & savings", breakdown: "Spending breakdown", goals: "Goals", insights: "What I notice" };
-            const DEFAULT_PREFS = () => ({ layout: Object.keys(DASH_SECTIONS), hidden: [], tiles: [], theme: { bg: "forest", accent: "gold" }, catColors: {} });
+            const DEFAULT_PREFS = () => ({ layout: Object.keys(DASH_SECTIONS), hidden: [], tiles: [], theme: { bg: "forest", accent: "gold" }, catColors: {}, greeting: true, transition: true });
             const PREFS_CACHE = "carnet-prefs";
             let prefs = DEFAULT_PREFS();
             let prefsReady = false; // false until supabase/005_card_colors_prefs.sql has been run
@@ -3061,6 +3450,8 @@
                     tiles: (Array.isArray(p.tiles) ? p.tiles : []).filter((k) => typeof k === "string").slice(0, 100),
                     theme: { bg: BG_THEMES[p.theme?.bg] ? p.theme.bg : d.theme.bg, accent: ACCENTS[p.theme?.accent] ? p.theme.accent : d.theme.accent },
                     catColors,
+                    greeting: p.greeting !== false,
+                    transition: p.transition !== false,
                 };
             }
 
@@ -4441,8 +4832,41 @@
             }
 
             // Settings > Preferences tab: colors and categories
+            // Username and the greeting / transition switches (work even before the prefs table exists: kept on the device)
+            function profileSettingsHTML() {
+                const sw = (on, label, sub, fn, extra = "") => `
+                    <button class="setting-row" onclick="${fn}" role="switch" aria-checked="${on}" ${extra}>
+                        <div class="info">
+                            <div class="info-label">${label}</div>
+                            <div class="info-sub">${sub}</div>
+                        </div>
+                        <span class="switch ${on ? "on" : ""}"></span>
+                    </button>`;
+                return `
+                    <div class="section-eyebrow">Profile</div>
+                    <button class="setting-row" onclick="openUsernameEditor(false)">
+                        <div class="info">
+                            <div class="info-label">Username</div>
+                            <div class="info-sub">${escapeHtml(getUsername() || "Not set")}</div>
+                        </div>
+                        <span class="arrow">›</span>
+                    </button>
+
+                    <div class="section-eyebrow">Animations</div>
+                    ${sw(prefs.greeting, "Welcome greeting", "The “Welcome” screen when you open Carnet", "toggleAnimPref('greeting')")}
+                    ${prefs.greeting ? sw(prefs.transition, "Transition to the dashboard", "A different full-screen animation each time you tap “Go to Carnet”", "toggleAnimPref('transition')") : ""}
+                    ${prefs.greeting ? `<button class="setting-row" onclick="playWelcome()"><div class="info"><div class="info-label">Preview the greeting</div></div><span class="arrow" style="color:var(--accent)">▶</span></button>` : ""}`;
+            }
+
+            function toggleAnimPref(key) {
+                vibrate(30);
+                prefs[key] = !prefs[key];
+                savePrefs();
+                renderSettings();
+            }
+
             function preferencesSettingsHTML() {
-                if (!prefsReady && !featuresReady) return `<div class="empty"><span class="glyph">◦</span>Preferences will appear here once the latest database update is installed.</div>`;
+                if (!prefsReady && !featuresReady) return `<div class="empty"><span class="glyph">◦</span>Colors and categories will appear here once the latest database update is installed.</div>`;
                 return `
                     ${prefsReady ? appearanceSettingsHTML() : ""}
 
@@ -4493,7 +4917,7 @@
                         <button class="filter-chip ${settingsTab === "preferences" ? "active" : ""}" onclick="setSettingsTab('preferences')">Preferences</button>
                     </div>`;
                 if (settingsTab === "preferences") {
-                    p.innerHTML = tabs + preferencesSettingsHTML() + `<div style="height:40px"></div>`;
+                    p.innerHTML = tabs + profileSettingsHTML() + preferencesSettingsHTML() + `<div style="height:40px"></div>`;
                     return;
                 }
                 p.innerHTML = tabs + `
