@@ -1108,6 +1108,94 @@
                 border: 1px solid rgba(217, 117, 88, 0.4);
             }
 
+            /* ============ WELCOME ============ */
+            .welcome {
+                position: fixed;
+                inset: 0;
+                z-index: 300;
+                display: none;
+                align-items: center;
+                justify-content: center;
+                background: color-mix(in srgb, var(--bg) 70%, transparent);
+                backdrop-filter: blur(7px);
+                -webkit-backdrop-filter: blur(7px);
+                cursor: pointer;
+            }
+            .welcome.show {
+                display: flex;
+            }
+            .welcome > div {
+                position: absolute;
+                left: 16px;
+                right: 16px;
+                text-align: center;
+                font-family: var(--font-display);
+                font-weight: 300;
+                font-size: clamp(34px, 10vw, 56px);
+                letter-spacing: -0.01em;
+                opacity: 0;
+                overflow-wrap: anywhere;
+            }
+            .welcome-name {
+                color: var(--accent);
+                font-style: italic;
+            }
+            .welcome.play .welcome-word {
+                animation: welcomeIn 0.5s ease forwards, welcomeOut 0.5s ease 0.5s forwards;
+            }
+            .welcome.play .welcome-name {
+                animation: welcomeIn 0.5s ease 1s forwards;
+            }
+            .welcome.leave {
+                animation: fadeOut 0.5s var(--ease) forwards;
+            }
+            @keyframes welcomeIn {
+                from { opacity: 0; transform: translateY(6px); }
+                to { opacity: 1; transform: none; }
+            }
+            @keyframes welcomeOut {
+                from { opacity: 1; }
+                to { opacity: 0; transform: translateY(-6px); }
+            }
+
+            /* ============ BACKUP ============ */
+            .switch {
+                width: 42px;
+                height: 24px;
+                border-radius: 12px;
+                background: var(--border-lift);
+                position: relative;
+                flex-shrink: 0;
+                transition: background 0.2s var(--ease);
+            }
+            .switch::after {
+                content: "";
+                position: absolute;
+                top: 3px;
+                left: 3px;
+                width: 18px;
+                height: 18px;
+                border-radius: 50%;
+                background: var(--text);
+                transition: transform 0.2s var(--ease);
+            }
+            .switch.on {
+                background: var(--accent);
+            }
+            .switch.on::after {
+                transform: translateX(18px);
+                background: var(--bg);
+            }
+            .backup-logo {
+                width: 38px;
+                height: 38px;
+                border-radius: 10px;
+                object-fit: cover;
+                margin-right: 14px;
+                flex-shrink: 0;
+                background: var(--bg-2);
+            }
+
             /* ============ SETTINGS ============ */
             .setting-row {
                 display: flex;
@@ -1814,6 +1902,10 @@
             <form class="auth-card" id="auth-form" novalidate>
                 <h2 id="auth-title">Sign in</h2>
                 <div class="auth-msg" id="auth-msg" style="display: none"></div>
+                <div class="field" id="auth-username-field" style="display: none">
+                    <label for="auth-username">Username</label>
+                    <input type="text" id="auth-username" autocomplete="nickname" maxlength="24" />
+                </div>
                 <div class="field" id="auth-email-field">
                     <label for="auth-email">Email</label>
                     <input type="email" id="auth-email" autocomplete="email" required />
@@ -1970,6 +2062,41 @@
                 </div>
                 <div class="btn-row" id="delete-row" style="display: none; margin-top: 8px">
                     <button class="btn btn-danger" onclick="deleteEntry()">Delete</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Welcome animation -->
+        <div class="welcome" id="welcome" onclick="endWelcome()">
+            <div class="welcome-word">Welcome</div>
+            <div class="welcome-name" id="welcome-name"></div>
+        </div>
+
+        <!-- Username -->
+        <div class="modal-backdrop" id="username-modal-backdrop">
+            <div class="modal">
+                <div class="modal-handle"></div>
+                <h2 id="username-modal-title">Choose a username</h2>
+                <div class="field">
+                    <label for="username-input">Username</label>
+                    <input type="text" id="username-input" maxlength="24" autocomplete="nickname" placeholder="How should Carnet greet you?" />
+                </div>
+                <div class="btn-row">
+                    <button class="btn btn-ghost" id="username-cancel" onclick="closeUsernameEditor()">Cancel</button>
+                    <button class="btn btn-primary" onclick="saveUsername()">Save</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Backup actions -->
+        <div class="modal-backdrop" id="backup-modal-backdrop">
+            <div class="modal">
+                <div class="modal-handle"></div>
+                <h2 id="backup-modal-title">Backup</h2>
+                <div class="btn-row" style="flex-direction: column; gap: 8px">
+                    <button class="btn btn-primary" onclick="downloadBackup('xlsx')">Download Excel</button>
+                    <button class="btn btn-ghost" onclick="downloadBackup('json')">Download JSON</button>
+                    <button class="btn btn-danger" onclick="deleteBackup()">Delete this backup</button>
                 </div>
             </div>
         </div>
@@ -2192,6 +2319,7 @@
                 lock.style.display = "flex";
                 document.getElementById("auth-title").textContent = AUTH_TEXT[mode].title;
                 document.getElementById("auth-submit").textContent = AUTH_TEXT[mode].submit;
+                document.getElementById("auth-username-field").style.display = mode === "signup" ? "block" : "none";
                 document.getElementById("auth-email-field").style.display = mode === "setpassword" ? "none" : "block";
                 document.getElementById("auth-password-field").style.display = mode === "forgot" ? "none" : "block";
                 document.getElementById("auth-consent").style.display = mode === "signup" ? "flex" : "none";
@@ -2244,6 +2372,8 @@
 
                 if (authMode !== "setpassword" && !/^\S+@\S+\.\S+$/.test(email)) return setAuthMsg("Enter a valid email.", true);
                 if (authMode !== "forgot" && password.length < 8) return setAuthMsg("Password must be at least 8 characters.", true);
+                const username = cleanUsername(document.getElementById("auth-username").value);
+                if (authMode === "signup" && username.length < 2) return setAuthMsg("Choose a username (at least 2 characters).", true);
                 if (authMode === "signup" && !document.getElementById("auth-consent-box").checked) return setAuthMsg("Please accept the privacy policy to continue.", true);
 
                 btn.disabled = true;
@@ -2253,7 +2383,7 @@
                         if (error) throw error;
                         // onAuthStateChange starts the app
                     } else if (authMode === "signup") {
-                        const { data, error } = await sb.auth.signUp({ email, password, options: { emailRedirectTo: APP_URL } });
+                        const { data, error } = await sb.auth.signUp({ email, password, options: { emailRedirectTo: APP_URL, data: { username } } });
                         if (error) throw error;
                         if (!data.session) showAuth("signin", "Check your inbox and click the confirmation link, then sign in here.");
                     } else if (authMode === "forgot") {
@@ -2301,6 +2431,62 @@
                 document.getElementById("app").classList.add("show");
                 render();
                 initSwipe();
+                // Accounts made before usernames existed pick one first, then get the welcome
+                if (getUsername()) playWelcome();
+                else openUsernameEditor(true);
+            }
+
+            // ----- Username (stored in the account's user_metadata, no table needed) -----
+            const cleanUsername = (s) => (s || "").replace(/\s+/g, " ").trim().slice(0, 24);
+            const getUsername = () => cleanUsername(currentUser?.user_metadata?.username);
+            let usernameFirstTime = false;
+
+            function openUsernameEditor(firstTime) {
+                usernameFirstTime = !!firstTime;
+                document.getElementById("username-modal-title").textContent = firstTime ? "Choose a username" : "Change username";
+                document.getElementById("username-cancel").style.display = firstTime ? "none" : "";
+                const input = document.getElementById("username-input");
+                input.value = getUsername();
+                document.getElementById("username-modal-backdrop").classList.add("open");
+                setTimeout(() => input.focus(), 350);
+            }
+
+            function closeUsernameEditor() {
+                if (usernameFirstTime) return; // a username is required once
+                document.getElementById("username-modal-backdrop").classList.remove("open");
+            }
+
+            async function saveUsername() {
+                const username = cleanUsername(document.getElementById("username-input").value);
+                if (username.length < 2) return toast("At least 2 characters", true);
+                const { data, error } = await sb.auth.updateUser({ data: { username } });
+                if (error) return toast("Could not save username: " + error.message, true);
+                currentUser = data.user;
+                const wasFirst = usernameFirstTime;
+                usernameFirstTime = false;
+                closeUsernameEditor();
+                if (currentPage === "settings") renderSettings();
+                if (wasFirst) setTimeout(playWelcome, 350);
+                else toast("Username saved");
+            }
+
+            // ----- Welcome: "Welcome" fades in and out (0.5 s each), then the username in the accent color -----
+            let welcomeTimers = [];
+            function playWelcome() {
+                const el = document.getElementById("welcome");
+                document.getElementById("welcome-name").textContent = getUsername();
+                el.classList.remove("play", "leave");
+                void el.offsetWidth; // restart the animation
+                el.classList.add("show", "play");
+                welcomeTimers = [setTimeout(endWelcome, 2400)];
+            }
+
+            function endWelcome() {
+                const el = document.getElementById("welcome");
+                if (!el.classList.contains("show") || el.classList.contains("leave")) return;
+                welcomeTimers.forEach(clearTimeout);
+                el.classList.add("leave");
+                welcomeTimers = [setTimeout(() => el.classList.remove("show", "play", "leave"), 500)];
             }
 
             async function initAuth() {
@@ -2456,7 +2642,149 @@
                 } catch (e) {
                     setSync("error", "Offline");
                     toast("Supabase error: " + (e.message || "unknown"), true);
+                    return; // never back up a failed or partial load
                 }
+                await loadBackup();
+            }
+
+            // ============ WEEKLY BACKUP ============
+            // One slot per user (supabase/007_backups.sql). The weekly backup overwrites it;
+            // "Erase all my entries" never touches it.
+            const WEEK_MS = 7 * 86400000;
+            let backup = null; // { data, taken_at, weekly, anchor_at } or null
+            let backupReady = false;
+
+            function snapshot() {
+                const { depenses, revenus, carte, cards, categories, goals, taux } = state;
+                return JSON.parse(JSON.stringify({ depenses, revenus, carte, cards, categories, goals, taux }));
+            }
+            const entryCount = (d) => (d ? (d.depenses || []).length + (d.revenus || []).length + (d.carte || []).length : 0);
+
+            // Due once a new 7-day slot has started since the last backup (counted from the day it was switched on)
+            function backupDue() {
+                if (!backup?.weekly) return false;
+                const anchor = new Date(backup.anchor_at || backup.taken_at || Date.now()).getTime();
+                const slot = anchor + Math.floor((Date.now() - anchor) / WEEK_MS) * WEEK_MS;
+                return !backup.taken_at || new Date(backup.taken_at).getTime() < slot;
+            }
+
+            async function loadBackup() {
+                const { data, error } = await sb.from("backups").select("data,taken_at,weekly,anchor_at").eq("user_id", currentUser.id);
+                backupReady = !error;
+                if (error) return console.warn("backups table unavailable:", error.message);
+                backup = (data && data[0]) || null;
+                if (!backupDue()) return;
+                // an emptied account must not overwrite a backup that still holds entries
+                if (entryCount(state) === 0 && entryCount(backup.data) > 0) return;
+                await writeBackup({});
+            }
+
+            async function writeBackup(fields) {
+                const row = {
+                    user_id: currentUser.id,
+                    data: snapshot(),
+                    taken_at: new Date().toISOString(),
+                    weekly: backup?.weekly || false,
+                    anchor_at: backup?.anchor_at || null,
+                    updated_at: new Date().toISOString(),
+                    ...fields,
+                };
+                const { error } = await sb.from("backups").upsert(row);
+                if (error) {
+                    toast("Backup failed: " + error.message, true);
+                    return false;
+                }
+                backup = row;
+                return true;
+            }
+
+            async function toggleWeeklyBackup() {
+                vibrate(35);
+                if (!backupReady) return;
+                const now = new Date().toISOString();
+                if (!backup?.weekly) {
+                    // switching on backs up right away and starts the week from today
+                    if (await writeBackup({ weekly: true, anchor_at: now })) toast("Weekly backup on · backed up now");
+                } else {
+                    // switching off keeps the current backup
+                    const { error } = await sb.from("backups").update({ weekly: false, updated_at: now }).eq("user_id", currentUser.id);
+                    if (error) return toast("Could not turn it off: " + error.message, true);
+                    backup.weekly = false;
+                    toast("Weekly backup off · your backup is kept");
+                }
+                renderSettings();
+            }
+
+            const backupDateLabel = (iso) => new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+            const backupName = () => "Backup of the " + backupDateLabel(backup.taken_at);
+
+            function openBackupMenu() {
+                vibrate(30);
+                if (!backup?.data) return;
+                document.getElementById("backup-modal-title").textContent = backupName();
+                document.getElementById("backup-modal-backdrop").classList.add("open");
+            }
+
+            function closeBackupMenu() {
+                document.getElementById("backup-modal-backdrop").classList.remove("open");
+            }
+
+            // Exports work on the live state, so swap the backup in for the time of the export
+            function downloadBackup(kind) {
+                if (!backup?.data) return;
+                const file = "carnet-backup-" + backup.taken_at.slice(0, 10);
+                const live = state;
+                state = { ...state, ...backup.data };
+                try {
+                    if (kind === "xlsx") exportExcel(file);
+                    else exportData(file);
+                } finally {
+                    state = live;
+                }
+                closeBackupMenu();
+            }
+
+            async function deleteBackup() {
+                vibrate(50);
+                if (!confirm(backupName() + " will be deleted. This cannot be undone.")) return;
+                // keep the row (weekly switch and its cycle), drop the snapshot
+                const { error } = await sb.from("backups").update({ data: null, updated_at: new Date().toISOString() }).eq("user_id", currentUser.id);
+                if (error) return toast("Could not delete backup: " + error.message, true);
+                backup.data = null;
+                closeBackupMenu();
+                renderSettings();
+                toast("Backup deleted");
+            }
+
+            function backupSettingsHTML() {
+                if (!backupReady)
+                    return `<div class="setting-row" style="cursor:default"><div class="info"><div class="info-label">Weekly backup</div><div class="info-sub">Run supabase/007_backups.sql in Supabase to turn this on</div></div></div>`;
+                const on = !!backup?.weekly;
+                let sub = "Keeps one backup and replaces it once a week";
+                if (on) {
+                    const anchor = new Date(backup.anchor_at || backup.taken_at).getTime();
+                    const next = anchor + (Math.floor((Date.now() - anchor) / WEEK_MS) + 1) * WEEK_MS;
+                    sub = "Next backup on " + backupDateLabel(new Date(next).toISOString());
+                }
+                const tile = backup?.data
+                    ? `<button class="setting-row" onclick="openBackupMenu()">
+                            <img class="backup-logo" src="images/logo.png" alt="">
+                            <div class="info">
+                                <div class="info-label">${backupName()}</div>
+                                <div class="info-sub">${entryCount(backup.data)} entries · Excel, JSON or delete</div>
+                            </div>
+                            <span class="arrow">›</span>
+                        </button>`
+                    : "";
+                return `
+                    <button class="setting-row" onclick="toggleWeeklyBackup()" role="switch" aria-checked="${on}">
+                        <div class="info">
+                            <div class="info-label">Weekly backup</div>
+                            <div class="info-sub">${sub}</div>
+                        </div>
+                        <span class="switch ${on ? "on" : ""}"></span>
+                    </button>
+                    ${tile}`;
             }
 
             async function fetchAll() {
@@ -4200,6 +4528,13 @@
                         </div>
                         <span style="color:var(--text-4);font-size:12px">🔒</span>
                     </div>
+                    <button class="setting-row" onclick="openUsernameEditor(false)">
+                        <div class="info">
+                            <div class="info-label">Username</div>
+                            <div class="info-sub">${escapeHtml(getUsername() || "Not set")}</div>
+                        </div>
+                        <span class="arrow">›</span>
+                    </button>
                     <button class="setting-row" onclick="showAuth('setpassword')">
                         <div class="info">
                             <div class="info-label">Change password</div>
@@ -4243,6 +4578,9 @@
                         <span class="arrow" style="color:var(--accent)">↻</span>
                     </button>
 
+                    <div class="section-eyebrow">Backup</div>
+                    ${backupSettingsHTML()}
+
                     <div class="section-eyebrow">Danger zone</div>
                     <button class="setting-row" onclick="resetAll()" style="border-color:rgba(217, 117, 88, 0.3)">
                         <div class="info">
@@ -4282,7 +4620,7 @@
             const byDate = (a, b) => (a.date || "").localeCompare(b.date || "");
             const round2 = (n) => Math.round(n * 1000) / 1000;
 
-            function exportExcel() {
+            function exportExcel(fileBase) {
                 vibrate(35);
                 if (typeof XLSX === "undefined") {
                     toast("Excel library not loaded yet, try again", true);
@@ -4333,17 +4671,17 @@
                 add(expenses, "Expenses", [12, 40, 12, 22, 12]);
                 add(income, "Income", [12, 32, 8, 12]);
                 add(cards, "Cards", [12, 22, 34, 10, 9, 15, 8, 11]);
-                XLSX.writeFile(wb, "carnet-" + new Date().toISOString().slice(0, 10) + ".xlsx");
+                XLSX.writeFile(wb, (typeof fileBase === "string" ? fileBase : "carnet-" + new Date().toISOString().slice(0, 10)) + ".xlsx");
                 toast("Excel file exported");
             }
 
-            function exportData() {
+            function exportData(fileBase) {
                 vibrate(35);
                 const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement("a");
                 a.href = url;
-                a.download = "carnet-" + new Date().toISOString().slice(0, 10) + ".json";
+                a.download = (typeof fileBase === "string" ? fileBase : "carnet-" + new Date().toISOString().slice(0, 10)) + ".json";
                 a.click();
                 URL.revokeObjectURL(url);
                 toast("Exported");
@@ -4399,6 +4737,15 @@
             initAuth();
             document.getElementById("modal-backdrop").addEventListener("click", (e) => {
                 if (e.target.id === "modal-backdrop") closeModal();
+            });
+            document.getElementById("backup-modal-backdrop").addEventListener("click", (e) => {
+                if (e.target.id === "backup-modal-backdrop") closeBackupMenu();
+            });
+            document.getElementById("username-modal-backdrop").addEventListener("click", (e) => {
+                if (e.target.id === "username-modal-backdrop") closeUsernameEditor();
+            });
+            document.getElementById("username-input").addEventListener("keydown", (e) => {
+                if (e.key === "Enter") saveUsername();
             });
             document.getElementById("cat-modal-backdrop").addEventListener("click", (e) => {
                 if (e.target.id === "cat-modal-backdrop") closeCategoryEditor();

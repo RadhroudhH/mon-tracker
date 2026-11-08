@@ -58,6 +58,12 @@ Between step 3 and step 4 the site works the same as before. Only the PIN is gon
     It adds a `category` column to `carte`. Existing card purchases count as "Other" until you edit them.
     Until you run it, card purchases have no category picker, but the Overall / Cash / Cards graphs still work.
 
+12. **Weekly backup.** Run `supabase/007_backups.sql`. There is nothing to edit.
+    It creates the `backups` table: one backup slot per user, with a strict per-user policy.
+    Then turn on Settings → General → Backup → *Weekly backup*. It backs up right away, then once a week, counted from that day, on the first visit after the week is up.
+    "Erase all my entries" never touches the backup. Deleting the account removes it.
+    Until you run it, the Backup section only shows this instruction.
+
 ## Legal checklist (not legal advice)
 
 **Tunisia, Organic Law 2004-63 (INPDP).** Processing personal data needs a **prior declaration to the INPDP** (Decree 2007-3004). Supabase stores data outside Tunisia, and **transfers abroad need INPDP authorization**. Do this before opening sign-ups to the public.
