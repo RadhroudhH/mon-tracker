@@ -5084,7 +5084,7 @@
                     <button class="setting-row" onclick="exportExcel()">
                         <div class="info">
                             <div class="info-label">Export to Excel</div>
-                            <div class="info-sub">All expenses, income, card operations and balances (.xlsx)</div>
+                            <div class="info-sub">Plain tables: everything, expenses, income, savings and cards (.xlsx)</div>
                         </div>
                         <span class="arrow" style="color:var(--accent)">↓</span>
                     </button>
@@ -5151,51 +5151,54 @@
                     toast("Excel library not loaded yet, try again", true);
                     return;
                 }
-                const bal = computeBalances();
-                const expenses = [...state.depenses].sort(byDate).map((d) => ({
-                    Date: d.date || "",
-                    Description: d.description || "",
-                    Category: catLabel(d.category),
-                    Movement: d.category === "Epargne" ? (d.amount < 0 ? "Taken out of savings" : "Put into savings") : "",
-                    "Amount (DT)": round2(d.amount),
-                }));
-                const income = [...state.revenus].sort(byDate).map((r) => ({
-                    Date: r.date || "",
-                    Source: r.source || "",
-                    Offset: r.source === "offset" || r.source === "Offset" ? "Yes" : "",
-                    "Amount (DT)": round2(r.amount),
-                }));
-                const cards = [...state.carte].sort(byDate).map((c) => ({
-                    Date: c.date || "",
-                    Card: cardName(c.card),
-                    Description: c.description || "",
-                    Type: CARD_OP_LABELS[c.type] || c.type,
-                    Currency: c.currency,
-                    "Original amount": c.currency === "USD" ? c.usd : c.currency === "EUR" ? c.eur : round2(c.total_dt),
-                    Rate: c.rate,
-                    "Total (DT)": round2(c.total_dt),
-                    Category: c.type === "Achat" ? catLabel(c.category || "Autre") : "",
-                }));
-                const summary = [
-                    { Item: "Total balance", "Value (DT)": round2(bal.total) },
-                    { Item: "Cash", "Value (DT)": round2(bal.cash) },
-                    ...bal.cards.map((c) => ({ Item: c.name + " (card)", "Value (DT)": round2(c.balance) })),
-                    { Item: "Savings", "Value (DT)": round2(bal.savings) },
-                    { Item: "USD selling rate", "Value (DT)": state.taux.usd_vente },
-                    { Item: "EUR selling rate", "Value (DT)": state.taux.eur_vente },
-                    { Item: "Exported on", "Value (DT)": new Date().toISOString().slice(0, 10) },
-                ];
+                // Plain data only: one row per entry, a header row, real dates and numbers. No summary, no styling.
+                const isSaving = (d) => d.category === "Epargne";
+                const spent = [...state.depenses].filter((d) => !isSaving(d)).sort(byDate);
+                const savings = [...state.depenses].filter(isSaving).sort(byDate);
+                const income = [...state.revenus].sort(byDate);
+                const cardOps = [...state.carte].sort(byDate);
+                const cardCat = (c) => (c.type === "Achat" ? catLabel(c.category || "Autre") : "");
+                const original = (c) => (c.currency === "USD" ? c.usd : c.currency === "EUR" ? c.eur : round2(c.total_dt));
+
+                const sheets = {
+                    // Everything in one table, oldest first. Amounts as recorded; filter on Type or Account.
+                    All: [
+                        ["Date", "Type", "Account", "Name", "Category", "Amount (DT)"],
+                        ...[
+                            ...spent.map((d) => [d.date, "Expense", "Cash", d.description || "", catLabel(d.category), round2(d.amount)]),
+                            ...income.map((r) => [r.date, "Income", "Cash", r.source || "", "", round2(r.amount)]),
+                            ...savings.map((d) => [d.date, d.amount < 0 ? "Savings withdrawal" : "Savings deposit", "Savings", d.description || "", "", round2(d.amount)]),
+                            ...cardOps.map((c) => [c.date, "Card " + (CARD_OP_LABELS[c.type] || c.type).toLowerCase(), cardName(c.card), c.description || "", cardCat(c), round2(c.total_dt)]),
+                        ].sort((a, b) => (a[0] || "").localeCompare(b[0] || "")),
+                    ],
+                    Expenses: [["Date", "Name", "Category", "Amount (DT)"], ...spent.map((d) => [d.date, d.description || "", catLabel(d.category), round2(d.amount)])],
+                    Income: [["Date", "Name", "Amount (DT)"], ...income.map((r) => [r.date, r.source || "", round2(r.amount)])],
+                    Savings: [["Date", "Name", "Movement", "Amount (DT)"], ...savings.map((d) => [d.date, d.description || "", d.amount < 0 ? "Withdrawal" : "Deposit", round2(d.amount)])],
+                    Cards: [
+                        ["Date", "Card", "Name", "Type", "Category", "Currency", "Original amount", "Rate", "Amount (DT)"],
+                        ...cardOps.map((c) => [c.date, cardName(c.card), c.description || "", CARD_OP_LABELS[c.type] || c.type, cardCat(c), c.currency || "TND", original(c), c.rate || "", round2(c.total_dt)]),
+                    ],
+                };
+
+                // "YYYY-MM-DD" → a real Excel date (serial number shown as yyyy-mm-dd), so sorting and filtering work
+                const excelDate = (iso) => {
+                    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || "");
+                    return m ? (Date.UTC(+m[1], +m[2] - 1, +m[3]) - Date.UTC(1899, 11, 30)) / 86400000 : null;
+                };
 
                 const wb = XLSX.utils.book_new();
-                const add = (rows, name, widths) => {
-                    const ws = XLSX.utils.json_to_sheet(rows);
-                    ws["!cols"] = widths.map((w) => ({ wch: w }));
+                Object.entries(sheets).forEach(([name, rows]) => {
+                    const ws = XLSX.utils.aoa_to_sheet(rows.map((r, i) => (i ? r.map((v) => (v == null ? "" : v)) : r)));
+                    for (let i = 1; i < rows.length; i++) {
+                        const ref = XLSX.utils.encode_cell({ r: i, c: 0 });
+                        const serial = excelDate(rows[i][0]);
+                        ws[ref] = serial == null ? { t: "s", v: "" } : { t: "n", v: serial, z: "yyyy-mm-dd" };
+                    }
+                    // column widths from the longest value, header row filterable
+                    ws["!cols"] = rows[0].map((_, c) => ({ wch: Math.min(48, Math.max(10, ...rows.map((r) => String(r[c] ?? "").length + 2))) }));
+                    ws["!autofilter"] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: Math.max(0, rows.length - 1), c: rows[0].length - 1 } }) };
                     XLSX.utils.book_append_sheet(wb, ws, name);
-                };
-                add(summary, "Summary", [22, 14]);
-                add(expenses, "Expenses", [12, 40, 12, 22, 12]);
-                add(income, "Income", [12, 32, 8, 12]);
-                add(cards, "Cards", [12, 22, 34, 10, 9, 15, 8, 11]);
+                });
                 XLSX.writeFile(wb, (typeof fileBase === "string" ? fileBase : "carnet-" + new Date().toISOString().slice(0, 10)) + ".xlsx");
                 toast("Excel file exported");
             }
