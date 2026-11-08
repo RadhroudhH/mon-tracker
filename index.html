@@ -1365,6 +1365,18 @@
             .breakdown-cards {
                 margin: -4px 0 10px;
             }
+            .breakdown-note {
+                font-size: 11px;
+                color: var(--text-3);
+                text-align: center;
+                margin: -4px 0 6px;
+            }
+            .breakdown-note button {
+                color: var(--accent);
+                font-size: 11px;
+                text-decoration: underline;
+                padding: 0;
+            }
             .settings-tabs {
                 display: flex;
                 gap: 8px;
@@ -3113,6 +3125,18 @@
                 renderBreakdown();
             }
 
+            // Change the period from inside the graph (keeps the dropdown in sync)
+            function setBreakdownPeriod(period) {
+                vibrate(25);
+                breakdownPeriod = period;
+                try {
+                    localStorage.setItem(PERIOD_KEY, period);
+                } catch (_) {}
+                const sel = document.getElementById("period-select");
+                if (sel) sel.value = period;
+                renderBreakdown();
+            }
+
             function setBreakdownCard(id) {
                 vibrate(25);
                 breakdownCard = id;
@@ -3127,7 +3151,15 @@
 
                 const items = breakdownView === "cash" ? cashSpending() : breakdownView === "cards" ? cardSpending(breakdownCard) : [...cashSpending(), ...cardSpending("all")];
                 const totals = {};
-                items.filter((d) => inPeriod(d.date, breakdownPeriod)).forEach((d) => (totals[d.category] = (totals[d.category] || 0) + d.amount));
+                const inRange = items.filter((d) => inPeriod(d.date, breakdownPeriod));
+                inRange.forEach((d) => (totals[d.category] = (totals[d.category] || 0) + d.amount));
+                // Say clearly when the period hides entries, so nothing looks "missing"
+                const periodLabel = (PERIODS.find((p) => p.id === breakdownPeriod) || {}).label || "";
+                const hiddenCount = items.length - inRange.length;
+                const note =
+                    hiddenCount > 0
+                        ? `<div class="breakdown-note">${escapeHtml(periodLabel)} · ${inRange.length} of ${items.length} entries. <button type="button" onclick="setBreakdownPeriod('all')">Show all time</button></div>`
+                        : "";
                 const entries = Object.entries(totals)
                     .filter(([, amt]) => amt > 0)
                     .sort((a, b) => b[1] - a[1]);
@@ -3144,7 +3176,7 @@
 
                 if (!entries.length) {
                     const why = breakdownView === "cards" && !state.carte.some((c) => c.type === "Achat") ? "No card purchases yet" : "No spending in this period";
-                    el.innerHTML = views + cardChips + `<div style="color:var(--text-4);padding:28px 0 20px;text-align:center;font-size:12px;">${why}</div>`;
+                    el.innerHTML = views + cardChips + note + `<div style="color:var(--text-4);padding:28px 0 20px;text-align:center;font-size:12px;">${why}</div>`;
                     return;
                 }
 
@@ -3165,6 +3197,7 @@
                 el.innerHTML = `
                     ${views}
                     ${cardChips}
+                    ${note}
                     <div class="donut-wrap">
                         <svg viewBox="0 0 180 180" role="img" aria-label="Spending by category">
                             <circle cx="90" cy="90" r="${r}" fill="none" stroke="var(--bg-2)" stroke-width="18" />
