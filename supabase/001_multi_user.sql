@@ -14,6 +14,7 @@ do $migration$
 declare
   owner_email text := 'YOUR-EMAIL@example.com';   -- <<< your email here
   owner_id uuid;
+  pol record;
 begin
   -- ---------- 0. Find the owner of the existing data ----------
   select id into owner_id from auth.users where lower(email) = lower(trim(owner_email));
@@ -60,10 +61,13 @@ begin
   alter table public.carte    enable row level security;
   alter table public.taux     enable row level security;
 
-  drop policy if exists "own rows" on public.depenses;
-  drop policy if exists "own rows" on public.revenus;
-  drop policy if exists "own rows" on public.carte;
-  drop policy if exists "own rows" on public.taux;
+  -- Drop EVERY existing policy (not just ours): older permissive ones such as
+  -- "allow all" would otherwise be OR-ed with ours and expose all rows.
+  -- (Missing in the first version of this script, see 003_fix_policies.sql.)
+  for pol in select tablename, policyname from pg_policies
+             where schemaname = 'public' and tablename in ('depenses', 'revenus', 'carte', 'taux') loop
+    execute format('drop policy %I on public.%I', pol.policyname, pol.tablename);
+  end loop;
 
   create policy "own rows" on public.depenses for all to authenticated
     using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);

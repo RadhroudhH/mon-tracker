@@ -1,5 +1,10 @@
 # Multi-user accounts: go-live guide
 
+> **Incident, 2026-11-08.** An invited user could see and erase the owner's data.
+> Cause: old permissive policies (from the original Supabase setup) were still on the tables. Postgres ORs policies together, so those old rules overrode the new "own rows" one. `001` only dropped its own policy name.
+> Fix: run `supabase/003_fix_policies.sql`, which drops every policy and recreates only "own rows". Then run the private restore script `backups/RESTORE-2026-11-08.sql`, which is never committed.
+> The app now also filters every read and delete by `user_id` as a second safety net.
+
 The code is ready: the sign-in screen, per-user data, account settings and `privacy.html`.
 The database part is `supabase/001_multi_user.sql`. Follow these steps **in order**.
 

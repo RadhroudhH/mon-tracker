@@ -2074,12 +2074,16 @@
             }
 
             async function fetchAll() {
+                // Every query is also filtered by user_id. RLS in the database is the real protection;
+                // this second check means a misconfigured policy can never show someone else's rows.
+                const uid = currentUser?.id;
+                if (!uid) throw new Error("not signed in");
                 const [depR, revR, ctR, txR, cardsR] = await Promise.all([
-                    sb.from("depenses").select("*"),
-                    sb.from("revenus").select("*"),
-                    sb.from("carte").select("*"),
-                    sb.from("taux").select("*"),
-                    sb.from("cards").select("*").order("created_at"),
+                    sb.from("depenses").select("*").eq("user_id", uid),
+                    sb.from("revenus").select("*").eq("user_id", uid),
+                    sb.from("carte").select("*").eq("user_id", uid),
+                    sb.from("taux").select("*").eq("user_id", uid),
+                    sb.from("cards").select("*").eq("user_id", uid).order("created_at"),
                 ]);
                 if (cardsR.error) {
                     // cards table not created yet (supabase/002_cards.sql not run): fall back to the two legacy cards
@@ -2119,7 +2123,7 @@
                 setSync("syncing", "Sync…");
                 try {
                     const table = kind === "depense" ? "depenses" : kind === "revenu" ? "revenus" : "carte";
-                    const { error } = await sb.from(table).upsert(entry);
+                    const { error } = await sb.from(table).upsert({ ...entry, user_id: currentUser.id });
                     if (error) throw error;
                     setSync("", "Up to date");
                 } catch (e) {
@@ -2132,7 +2136,7 @@
                 setSync("syncing", "Sync…");
                 try {
                     const table = kind === "depense" ? "depenses" : kind === "revenu" ? "revenus" : "carte";
-                    const { error } = await sb.from(table).delete().eq("id", id);
+                    const { error } = await sb.from(table).delete().eq("id", id).eq("user_id", currentUser.id);
                     if (error) throw error;
                     setSync("", "Up to date");
                 } catch (e) {
@@ -2699,7 +2703,7 @@
                 toast(existing ? "Card updated" : "Card added");
 
                 setSync("syncing", "Sync…");
-                const { error } = await sb.from("cards").upsert(card);
+                const { error } = await sb.from("cards").upsert({ ...card, user_id: currentUser.id });
                 if (error) {
                     setSync("error", "Error");
                     toast("Could not save card: " + error.message, true);
@@ -2721,8 +2725,8 @@
                 toast("Card deleted");
 
                 setSync("syncing", "Sync…");
-                const r1 = await sb.from("carte").delete().eq("card", card.id);
-                const r2 = r1.error ? r1 : await sb.from("cards").delete().eq("id", card.id);
+                const r1 = await sb.from("carte").delete().eq("card", card.id).eq("user_id", currentUser.id);
+                const r2 = r1.error ? r1 : await sb.from("cards").delete().eq("id", card.id).eq("user_id", currentUser.id);
                 if (r2.error) {
                     setSync("error", "Error");
                     toast("Could not delete card: " + r2.error.message, true);
@@ -3266,13 +3270,17 @@
 
             async function resetAll() {
                 vibrate(50);
-                if (!confirm("Erase all your entries? Your account stays.")) return;
-                if (!confirm("Final confirmation: delete every entry?")) return;
+                if (!confirm("Erase all your entries? Your account stays.\n\nTip: export to Excel first.")) return;
+                if (prompt("Type ERASE to delete every entry of " + (currentUser?.email || "this account")) !== "ERASE") return toast("Cancelled");
                 setSync("syncing", "Erasing…");
                 try {
-                    await sb.from("depenses").delete().neq("id", "");
-                    await sb.from("revenus").delete().neq("id", "");
-                    await sb.from("carte").delete().neq("id", "");
+                    // Only ever this user's rows (explicit filter on top of RLS)
+                    const uid = currentUser?.id;
+                    if (!uid) throw new Error("not signed in");
+                    for (const t of ["depenses", "revenus", "carte"]) {
+                        const { error } = await sb.from(t).delete().eq("user_id", uid);
+                        if (error) throw error;
+                    }
                     state.depenses = [];
                     state.revenus = [];
                     state.carte = [];

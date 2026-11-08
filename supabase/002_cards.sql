@@ -26,7 +26,7 @@ begin
   create index if not exists cards_user_id_idx on public.cards (user_id);
 
   alter table public.cards enable row level security;
-  drop policy if exists "own rows" on public.cards;
+  drop policy if exists "own rows" on public.cards;  -- new table: no other policies exist
   create policy "own rows" on public.cards for all to authenticated
     using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
   revoke all on public.cards from anon;
