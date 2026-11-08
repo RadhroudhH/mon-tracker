@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="theme-color" content="#0A0E0C" />
+        <title>Carnet · Privacy</title>
+        <link rel="icon" href="images/logo.png" />
+        <style>
+            :root {
+                --bg: #0a0e0c;
+                --text: #e9e7de;
+                --text-2: #a6a79e;
+                --text-3: #6b6e68;
+                --accent: #c4a85c;
+                --border: #262e29;
+            }
+            body {
+                background: var(--bg);
+                color: var(--text-2);
+                font: 15px/1.65 "Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+                max-width: 680px;
+                margin: 0 auto;
+                padding: 40px 16px 80px;
+            }
+            h1 {
+                font-family: "Fraunces", Georgia, serif;
+                font-style: italic;
+                font-weight: 300;
+                color: var(--text);
+                font-size: 32px;
+                margin: 0 0 4px;
+            }
+            h2 {
+                color: var(--text);
+                font-size: 16px;
+                margin: 32px 0 8px;
+            }
+            .meta {
+                color: var(--text-3);
+                font-size: 13px;
+                margin-bottom: 28px;
+            }
+            a {
+                color: var(--accent);
+            }
+            ul {
+                padding-left: 20px;
+            }
+            .todo {
+                background: rgba(196, 168, 92, 0.12);
+                color: var(--accent);
+                padding: 0 4px;
+                border-radius: 4px;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Privacy policy</h1>
+        <div class="meta">Last updated: November 8, 2026</div>
+
+        <p>Carnet is a small personal money tracker. This page explains what it stores about you, why, and what you can do about it. The short version is that your entries are yours: no one else can see them, they are never sold or shared, and you can export or delete them at any time.</p>
+
+        <h2>Who is responsible</h2>
+        <p>Carnet is run by an individual, not a company. Contact: <span class="todo">[your contact email]</span>.</p>
+
+        <h2>What is stored</h2>
+        <ul>
+            <li><strong>Account:</strong> your email address and a password. The password is hashed by Supabase Auth and never stored in plain text.</li>
+            <li><strong>Your entries:</strong> the expenses, income, card operations, savings movements and exchange rates you type in, with their dates, amounts and descriptions.</li>
+            <li><strong>Technical data:</strong> sign-in tokens kept in your browser so you stay signed in, plus the access logs Supabase keeps for security.</li>
+        </ul>
+        <p>There is no advertising, no analytics and no tracking cookies.</p>
+
+        <h2>Why</h2>
+        <p>The only purpose is to provide the tracker to you: showing your balances, charts and history across your devices. The legal basis is your consent and the service you asked for when you created an account.</p>
+
+        <h2>Where it is stored</h2>
+        <p>Data is hosted by <a href="https://supabase.com/privacy" target="_blank" rel="noopener">Supabase</a> (database and authentication) in the <span class="todo">[Supabase region, e.g. EU (Frankfurt)]</span> region. This may be outside your country. The database only lets each signed-in user read and write their own rows, through Row Level Security. All traffic is encrypted with HTTPS.</p>
+
+        <h2>Who can see it</h2>
+        <p>Only you. The person running Carnet has administrator access to the database for maintenance and does not look at your entries unless you ask for help. Your data is never sold or shared with anyone else.</p>
+
+        <h2>How long it is kept</h2>
+        <p>As long as your account exists. If you delete your account, your entries are deleted immediately. Supabase's own backups roll over within a few days.</p>
+
+        <h2>Your rights</h2>
+        <ul>
+            <li><strong>Access and portability:</strong> Settings → Export to Excel or JSON.</li>
+            <li><strong>Correction:</strong> edit any entry in the app.</li>
+            <li><strong>Deletion:</strong> Settings → Delete my account removes the account and everything in it.</li>
+            <li><strong>Questions or complaints:</strong> write to the contact above. In Tunisia you can also contact the <a href="https://www.inpdp.tn" target="_blank" rel="noopener">INPDP</a>. In the EU, contact your national data protection authority.</li>
+        </ul>
+
+        <h2>Changes</h2>
+        <p>If this policy changes, the date at the top is updated. For significant changes, you will be told in the app.</p>
+
+        <p style="margin-top: 40px"><a href="./">← Back to Carnet</a></p>
+    </body>
+</html>

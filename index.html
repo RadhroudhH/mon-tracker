@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="fr">
+<html lang="en">
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover" />
@@ -11,7 +11,8 @@
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
-        <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+        <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
         <style>
             :root {
                 --bg: #0a0e0c;
@@ -76,7 +77,7 @@
                 touch-action: manipulation;
             }
 
-            /* ============ LOCK SCREEN ============ */
+            /* ============ AUTH SCREEN ============ */
             #lock {
                 position: fixed;
                 inset: 0;
@@ -87,6 +88,7 @@
                 align-items: center;
                 justify-content: center;
                 padding: 40px 24px;
+                overflow-y: auto;
                 animation: fadeIn 0.4s var(--ease);
             }
             #lock::before {
@@ -111,108 +113,76 @@
                 letter-spacing: 0.35em;
                 text-transform: uppercase;
                 color: var(--text-4);
-                margin-bottom: 56px;
+                margin-bottom: 40px;
                 animation: fadeSlide 0.6s var(--ease) 0.1s backwards;
             }
-            #pin-display {
-                display: flex;
-                gap: 14px;
-                margin-bottom: 52px;
-                min-height: 12px;
+            .auth-card {
+                position: relative;
+                width: 100%;
+                max-width: 360px;
                 animation: fadeSlide 0.6s var(--ease) 0.2s backwards;
             }
-            .pin-dot {
-                width: 10px;
-                height: 10px;
-                border-radius: 50%;
-                background: var(--accent);
-                animation: pinPop 0.2s var(--ease-back);
+            .auth-card h2 {
+                font-family: var(--font-display);
+                font-style: italic;
+                font-weight: 400;
+                font-size: 22px;
+                margin-bottom: 20px;
             }
-            #pin-display.error .pin-dot {
-                background: var(--danger);
+            .auth-card .btn {
+                width: 100%;
+                margin-top: 6px;
             }
-            #pin-display.error {
-                animation: shake 0.4s;
+            .auth-card .btn:disabled {
+                opacity: 0.6;
             }
-            @keyframes pinPop {
-                from {
-                    transform: scale(0);
-                    opacity: 0;
-                }
-                to {
-                    transform: scale(1);
-                    opacity: 1;
-                }
-            }
-            @keyframes shake {
-                0%,
-                100% {
-                    transform: translateX(0);
-                }
-                20%,
-                60% {
-                    transform: translateX(-10px);
-                }
-                40%,
-                80% {
-                    transform: translateX(10px);
-                }
-            }
-            .numpad {
-                display: grid;
-                grid-template-columns: repeat(3, 1fr);
-                gap: 16px;
-                width: 300px;
-                max-width: 84vw;
-                animation: fadeSlide 0.6s var(--ease) 0.3s backwards;
-            }
-            .numpad button {
-                aspect-ratio: 1;
+            .auth-msg {
+                font-size: 13px;
+                line-height: 1.5;
+                margin-bottom: 16px;
+                padding: 12px 14px;
+                border-radius: 12px;
                 background: var(--surface);
                 border: 1px solid var(--border);
-                border-radius: 50%;
-                font-size: 26px;
-                font-weight: 300;
-                color: var(--text);
-                transition:
-                    transform 0.12s var(--ease),
-                    background 0.2s,
-                    border-color 0.2s;
-                position: relative;
-                overflow: hidden;
-                touch-action: manipulation;
+                color: var(--text-2);
             }
-            .numpad button::after {
-                content: "";
-                position: absolute;
-                inset: 0;
-                border-radius: 50%;
-                background: radial-gradient(circle at center, rgba(196, 168, 92, 0.4), transparent 70%);
-                opacity: 0;
-                transition: opacity 0.4s;
-                pointer-events: none;
+            .auth-msg.error {
+                border-color: rgba(217, 117, 88, 0.4);
+                color: var(--danger);
             }
-            .numpad button:active {
-                transform: scale(0.9);
-                background: var(--surface-2);
-                border-color: var(--border-lift);
-            }
-            .numpad button:active::after {
-                opacity: 1;
-                transition: opacity 0.05s;
-            }
-            .numpad .del {
-                color: var(--text-3);
-                font-size: 20px;
-            }
-            .numpad .ok {
-                background: linear-gradient(145deg, var(--accent-2), var(--accent));
-                color: #0a0e0c;
-                font-weight: 500;
+            .auth-links {
+                display: flex;
+                justify-content: space-between;
+                gap: 12px;
+                margin-top: 18px;
                 font-size: 13px;
-                letter-spacing: 0.15em;
-                border-color: transparent;
-                box-shadow: 0 4px 20px rgba(196, 168, 92, 0.2);
+            }
+            .auth-links button,
+            .auth-links a {
+                color: var(--text-3);
+                text-decoration: none;
+                font-size: 13px;
+                padding: 0;
+            }
+            .auth-links button:hover,
+            .auth-links a:hover {
+                color: var(--accent);
+            }
+            .consent {
+                display: flex;
+                gap: 10px;
+                align-items: flex-start;
+                font-size: 12px;
+                color: var(--text-3);
+                margin: 4px 0 18px;
+                line-height: 1.5;
+            }
+            .consent input {
+                margin-top: 3px;
+                accent-color: var(--accent);
+            }
+            .consent a {
+                color: var(--accent);
             }
 
             @keyframes fadeIn {
@@ -535,26 +505,94 @@
                 padding: 18px 18px 12px;
                 margin-bottom: 14px;
             }
-            .repart-bar {
+            .section-head {
                 display: flex;
-                height: 6px;
-                border-radius: 3px;
-                overflow: hidden;
-                margin-bottom: 18px;
-                background: var(--bg-2);
+                justify-content: space-between;
+                align-items: center;
+                gap: 12px;
             }
-            .repart-bar .seg {
+            .period-select {
+                appearance: none;
+                -webkit-appearance: none;
+                background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23a6a79e' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 12px center;
+                border: 1px solid var(--border);
+                border-radius: 18px;
+                padding: 7px 30px 7px 14px;
+                font-size: 12px;
+                font-weight: 500;
+                color: var(--text-2);
+                outline: none;
+                margin-bottom: 6px;
+                cursor: pointer;
+            }
+            .period-select:focus {
+                border-color: var(--accent);
+            }
+            .donut-wrap {
+                position: relative;
+                width: 180px;
+                height: 180px;
+                margin: 4px auto 20px;
+            }
+            .donut-wrap svg {
+                width: 100%;
                 height: 100%;
-                transform-origin: left;
-                animation: growX 0.7s var(--ease);
+                transform: rotate(-90deg);
             }
-            @keyframes growX {
+            .donut-seg {
+                fill: none;
+                stroke-width: 18;
+                animation: donutIn 0.9s var(--ease) backwards;
+            }
+            @keyframes donutIn {
                 from {
-                    transform: scaleX(0);
+                    stroke-dasharray: 0 999;
                 }
-                to {
-                    transform: scaleX(1);
-                }
+            }
+            .donut-center {
+                position: absolute;
+                inset: 0;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                pointer-events: none;
+            }
+            .donut-center .total {
+                font-family: var(--font-display);
+                font-weight: 300;
+                font-size: 26px;
+                letter-spacing: -0.02em;
+                font-variant-numeric: tabular-nums;
+            }
+            .donut-center .caption {
+                font-size: 10px;
+                letter-spacing: 0.25em;
+                text-transform: uppercase;
+                color: var(--text-4);
+                margin-top: 2px;
+            }
+            .seg-toggle {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 6px;
+                background: var(--surface);
+                border: 1px solid var(--border);
+                border-radius: 12px;
+                padding: 4px;
+            }
+            .seg-toggle button {
+                padding: 11px;
+                border-radius: 9px;
+                font-size: 13px;
+                font-weight: 500;
+                color: var(--text-3);
+                transition: all 0.2s var(--ease);
+            }
+            .seg-toggle button.active {
+                background: var(--surface-2);
+                color: var(--text);
+                box-shadow: inset 0 0 0 1px var(--accent-dim);
             }
             .repart-list {
                 display: flex;
@@ -1288,14 +1326,6 @@
                 }
             }
 
-            .pin-fixed-note {
-                font-size: 10px;
-                color: var(--text-4);
-                letter-spacing: 0.15em;
-                margin-top: 24px;
-                opacity: 0.5;
-                user-select: none;
-            }
 
             .swipe-indicator {
                 display: none;
@@ -1331,43 +1361,46 @@
         </style>
     </head>
     <body>
-        <!-- ============ LOCK SCREEN ============ -->
-        <div id="lock">
+        <!-- ============ AUTH SCREEN ============ -->
+        <div id="lock" style="display: none">
             <div class="lock-brand">Carnet</div>
-            <div class="lock-sub">— Privé —</div>
-            <div id="pin-display"></div>
-            <div class="numpad">
-                <button data-k="1">1</button>
-                <button data-k="2">2</button>
-                <button data-k="3">3</button>
-                <button data-k="4">4</button>
-                <button data-k="5">5</button>
-                <button data-k="6">6</button>
-                <button data-k="7">7</button>
-                <button data-k="8">8</button>
-                <button data-k="9">9</button>
-                <button class="del" data-k="del">←</button>
-                <button data-k="0">0</button>
-                <button class="ok" data-k="ok">OK</button>
-            </div>
+            <div class="lock-sub">— Private —</div>
+            <form class="auth-card" id="auth-form" novalidate>
+                <h2 id="auth-title">Sign in</h2>
+                <div class="auth-msg" id="auth-msg" style="display: none"></div>
+                <div class="field" id="auth-email-field">
+                    <label for="auth-email">Email</label>
+                    <input type="email" id="auth-email" autocomplete="email" required />
+                </div>
+                <div class="field" id="auth-password-field">
+                    <label for="auth-password">Password</label>
+                    <input type="password" id="auth-password" autocomplete="current-password" minlength="8" required />
+                </div>
+                <label class="consent" id="auth-consent" style="display: none">
+                    <input type="checkbox" id="auth-consent-box" />
+                    <span>I agree to the <a href="privacy.html" target="_blank" rel="noopener">privacy policy</a>. My data is stored by Supabase and only I can see it.</span>
+                </label>
+                <button class="btn btn-primary" type="submit" id="auth-submit">Sign in</button>
+                <div class="auth-links" id="auth-links"></div>
+            </form>
         </div>
 
         <!-- ============ LOADING ============ -->
         <div class="loading-screen" id="loading" style="display: none">
             <div class="spinner"></div>
-            <div class="loading-text" id="loading-text">Synchronisation…</div>
+            <div class="loading-text" id="loading-text">Syncing…</div>
         </div>
 
         <!-- ============ APP ============ -->
         <div id="app">
             <div class="header">
-                <h1 id="page-title">Aperçu</h1>
+                <h1 id="page-title">Overview</h1>
                 <div class="header-actions">
                     <div class="sync-indicator" id="sync-indicator">
                         <span class="dot"></span>
                         <span id="sync-text">Sync</span>
                     </div>
-                    <button class="icon-btn" onclick="showPage('settings')" aria-label="Réglages" id="settings-btn">
+                    <button class="icon-btn" onclick="showPage('settings')" aria-label="Settings" id="settings-btn">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <circle cx="12" cy="12" r="3" />
                             <path d="M12 1v6m0 10v6m11-11h-6M7 12H1m18.4-7.4-4.2 4.2M8.8 15.2l-4.2 4.2m0-14.8 4.2 4.2m10.6 6.4 4.2 4.2" />
@@ -1377,10 +1410,10 @@
             </div>
 
             <div class="tabs" id="tabs-container">
-                <button class="tab active" data-page="dashboard">Aperçu</button>
-                <button class="tab" data-page="depenses">Dépenses</button>
-                <button class="tab" data-page="revenus">Revenus</button>
-                <button class="tab" data-page="carte">Carte</button>
+                <button class="tab active" data-page="dashboard">Overview</button>
+                <button class="tab" data-page="depenses">Expenses</button>
+                <button class="tab" data-page="revenus">Income</button>
+                <button class="tab" data-page="carte">Cards</button>
             </div>
 
             <div class="swipe-indicator left" id="swipe-left">‹</div>
@@ -1395,7 +1428,7 @@
             </div>
 
             <div class="fab-wrap" id="fab-wrap">
-                <button class="fab" onclick="openAddModal()" aria-label="Ajouter une entrée" id="fab-btn">
+                <button class="fab" onclick="openAddModal()" aria-label="Add an entry" id="fab-btn">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg>
                 </button>
             </div>
@@ -1405,14 +1438,14 @@
         <div class="modal-backdrop" id="modal-backdrop">
             <div class="modal">
                 <div class="modal-handle"></div>
-                <h2 id="modal-title">Nouvelle entrée</h2>
+                <h2 id="modal-title">New entry</h2>
 
                 <div class="field">
                     <label>Type</label>
                     <select id="entry-type" onchange="onEntryTypeChange()">
-                        <option value="depense">Dépense</option>
-                        <option value="revenu">Revenu</option>
-                        <option value="carte">Opération carte</option>
+                        <option value="depense">Expense</option>
+                        <option value="revenu">Income</option>
+                        <option value="carte">Card operation</option>
                     </select>
                 </div>
 
@@ -1420,21 +1453,29 @@
 
                 <div class="field" id="field-desc">
                     <label>Description</label>
-                    <input type="text" id="entry-desc" placeholder="Glovo, Taxi, café…" />
+                    <input type="text" id="entry-desc" placeholder="Glovo, taxi, coffee…" />
                 </div>
 
                 <div class="field" id="field-source" style="display: none">
                     <label>Source</label>
-                    <input type="text" id="entry-source" placeholder="Parents, freelance, cadeau…" />
+                    <input type="text" id="entry-source" placeholder="Parents, freelance, gift…" />
                 </div>
 
                 <div class="field" id="field-category">
-                    <label>Catégorie</label>
+                    <label>Category</label>
                     <div class="cat-grid" id="cat-grid"></div>
                 </div>
 
+                <div class="field" id="field-savings-dir" style="display: none">
+                    <label>Savings movement</label>
+                    <div class="seg-toggle" id="savings-dir">
+                        <button type="button" data-dir="in" class="active">Put in</button>
+                        <button type="button" data-dir="out">Take out</button>
+                    </div>
+                </div>
+
                 <div class="field" id="field-carte-which" style="display: none">
-                    <label>Quelle carte ?</label>
+                    <label>Which card?</label>
                     <select id="carte-which" onchange="onCarteWhichChange()">
                         <option value="techno">Zitouna Technologique</option>
                         <option value="d17">La Poste D17</option>
@@ -1442,94 +1483,57 @@
                 </div>
 
                 <div class="field" id="field-carte-type" style="display: none">
-                    <label>Type d'opération</label>
+                    <label>Operation type</label>
                     <select id="carte-op-type">
-                        <option value="Achat">Achat</option>
-                        <option value="Rechargement">Rechargement</option>
-                        <option value="Remboursement">Remboursement</option>
+                        <option value="Achat">Purchase</option>
+                        <option value="Rechargement">Top-up</option>
+                        <option value="Remboursement">Refund</option>
                     </select>
                 </div>
 
                 <div class="field" id="field-carte-devise" style="display: none">
-                    <label>Devise</label>
+                    <label>Currency</label>
                     <select id="carte-devise" onchange="calcCarteTotal()">
-                        <option value="DT">Dinars tunisiens</option>
+                        <option value="DT">Tunisian dinars</option>
                         <option value="USD">Dollars (USD)</option>
                         <option value="EUR">Euros (EUR)</option>
                     </select>
                 </div>
 
                 <div class="field">
-                    <label id="amount-label">Montant (DT)</label>
-                    <input type="number" step="0.01" id="entry-amount" placeholder="0,00" inputmode="decimal" oninput="calcCarteTotal()" />
+                    <label id="amount-label">Amount (DT)</label>
+                    <input type="number" step="0.01" id="entry-amount" placeholder="0.00" inputmode="decimal" oninput="calcCarteTotal()" />
                 </div>
 
                 <div class="field" id="field-carte-preview" style="display: none">
-                    <label>Total converti</label>
+                    <label>Converted total</label>
                     <div style="padding: 14px 16px; background: var(--surface); border-radius: 12px; font-family: var(--font-display); font-size: 22px; color: var(--accent); font-variant-numeric: tabular-nums" id="carte-preview">— DT</div>
                 </div>
 
                 <div class="btn-row">
-                    <button class="btn btn-ghost" onclick="closeModal()">Annuler</button>
-                    <button class="btn btn-primary" onclick="saveEntry()">Enregistrer</button>
+                    <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+                    <button class="btn btn-primary" onclick="saveEntry()">Save</button>
                 </div>
                 <div class="btn-row" id="delete-row" style="display: none; margin-top: 8px">
-                    <button class="btn btn-danger" onclick="deleteEntry()">Supprimer</button>
+                    <button class="btn btn-danger" onclick="deleteEntry()">Delete</button>
                 </div>
             </div>
         </div>
 
         <div class="toast" id="toast">
             <div class="toast-icon">✓</div>
-            <span id="toast-text">Enregistré</span>
+            <span id="toast-text">Saved</span>
         </div>
 
         <script>
             // ============ SUPABASE CONFIG ============
             const SUPABASE_URL = "https://sopwocrilelcxitpqvem.supabase.co";
+            // This key is public by design. Security comes from Row Level Security in the database
+            // (see supabase/001_multi_user.sql): each signed-in user can only read and write their own rows.
             const SUPABASE_KEY = "sb_publishable_MUndTwbVREQR4eO6_PAj8Q_MkOz15_t";
+            const INITIAL_HASH = location.hash; // read before the client consumes auth tokens from the URL
             const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-            // ============ FIXED PIN (PBKDF2-SHA256 hashed) ============
-            // Le PIN n'est jamais stocké en clair dans le code.
-            // Il est vérifié via PBKDF2 avec 100 000 itérations.
-            const PIN_SALT = "cBJ5IEfcsMlA3GzJE7V0Dw==";
-            const PIN_HASH = "r6ePZZPG/JetOuy+ozBMiVXWSqM5XZ37z9iE7rylA3g=";
-            const PIN_ITERATIONS = 100000;
-
-            // Fonction de vérification PBKDF2 utilisant Web Crypto API (natif navigateur)
-            async function verifyPin(inputPin) {
-                try {
-                    const encoder = new TextEncoder();
-                    const saltBytes = Uint8Array.from(atob(PIN_SALT), (c) => c.charCodeAt(0));
-                    const expectedHashBytes = Uint8Array.from(atob(PIN_HASH), (c) => c.charCodeAt(0));
-
-                    const keyMaterial = await crypto.subtle.importKey("raw", encoder.encode(inputPin), { name: "PBKDF2" }, false, ["deriveBits"]);
-
-                    const derivedBits = await crypto.subtle.deriveBits(
-                        {
-                            name: "PBKDF2",
-                            salt: saltBytes,
-                            iterations: PIN_ITERATIONS,
-                            hash: "SHA-256",
-                        },
-                        keyMaterial,
-                        256,
-                    );
-
-                    // Comparaison en temps constant (anti-timing attack)
-                    const derived = new Uint8Array(derivedBits);
-                    if (derived.length !== expectedHashBytes.length) return false;
-                    let diff = 0;
-                    for (let i = 0; i < derived.length; i++) {
-                        diff |= derived[i] ^ expectedHashBytes[i];
-                    }
-                    return diff === 0;
-                } catch (e) {
-                    console.error("Erreur de vérification PIN:", e);
-                    return false;
-                }
-            }
+            let currentUser = null;
 
             // ============ VIBRATION ============
             function vibrate(ms) {
@@ -1550,209 +1554,216 @@
                 }
             });
 
-            // ============ INITIAL DATA ============
-            const INITIAL_DATA = {
-                depenses: [
-                    { date: "2026-05-10", description: "Globo", category: "Livraison", amount: 23.0 },
-                    { date: "2026-05-11", description: "Glovo", category: "Livraison", amount: 20.0 },
-                    { date: "2026-05-12", description: "Glovo", category: "Livraison", amount: 18.0 },
-                    { date: "2026-05-12", description: "Saboun", category: "Autre", amount: 3.89 },
-                    { date: "2026-05-13", description: "Rami", category: "Epargne", amount: 10.0 },
-                    { date: "2026-05-13", description: "Farina", category: "Autre", amount: 0.95 },
-                    { date: "2026-05-14", description: "Aziza", category: "Bouffe", amount: 5.0 },
-                    { date: "2026-05-15", description: "Parents", category: "Epargne", amount: 20.0 },
-                    { date: "2026-05-15", description: "Glovo", category: "Livraison", amount: 11.0 },
-                    { date: "2026-05-15", description: "Lend Poutsi", category: "Autre", amount: 2.0 },
-                    { date: "2026-05-16", description: "Had to lend poutsi and I didn't have a 10 so I took a 10 from Epargne and put a 20 instead", category: "Epargne", amount: 10.0 },
-                    { date: "2026-05-16", description: "Lend Poutsi", category: "Autre", amount: 10.0 },
-                    { date: "2026-05-16", description: "lomja", category: "Bouffe", amount: 8.7 },
-                    { date: "2026-05-16", description: "Taxo", category: "Transport", amount: 2.1 },
-                    { date: "2026-05-16", description: "metro", category: "Transport", amount: 1.0 },
-                    { date: "2026-05-17", description: "Glovo", category: "Livraison", amount: 20.0 },
-                    { date: "2026-05-17", description: "Entry Amen", category: "Autre", amount: 5.0 },
-                    { date: "2026-05-19", description: "Glovo", category: "Livraison", amount: 9.6 },
-                    { date: "2026-05-20", description: "Livraison Kit Bluetooth", category: "Autre", amount: 49.0 },
-                    { date: "2026-05-20", description: "Glovo", category: "Livraison", amount: 13.24 },
-                    { date: "2026-05-20", description: "3a jjaw", category: "Epargne", amount: 10.0 },
-                    { date: "2026-05-20", description: "Taxi indirve", category: "Transport", amount: 7.9 },
-                    { date: "2026-05-20", description: "Cafe fac", category: "Bouffe", amount: 1.5 },
-                    { date: "2026-05-21", description: "aziza", category: "Bouffe", amount: 12.6 },
-                    { date: "2026-05-21", description: "donnè a Ryan fac", category: "Autre", amount: 1.0 },
-                    { date: "2026-05-22", description: "Livraison Sajjeda Maman Cadeau", category: "Autre", amount: 67.0 },
-                    { date: "2026-05-22", description: "Offset de ce que j'ai", category: "Autre", amount: 7.0 },
-                    { date: "2026-05-26", description: "Casse Croute Kefteji", category: "Bouffe", amount: 3.5 },
-                    { date: "2026-05-26", description: "Creation Carte De Credit Technologie", category: "Autre", amount: 30.0 },
-                    { date: "2026-05-26", description: "Eid Mehba", category: "Epargne", amount: 20.0 },
-                    { date: "2026-06-01", description: "lend poutsi", category: "Autre", amount: 30.0 },
-                    { date: "2026-06-01", description: "d17 de merde", category: "Autre", amount: 4.0 },
-                    { date: "2026-06-01", description: "5g ooreedoo", category: "Autre", amount: 11.0 },
-                    { date: "2026-06-06", description: "gazouza", category: "Bouffe", amount: 3.0 },
-                    { date: "2026-06-08", description: "Ice creame", category: "Bouffe", amount: 6.0 },
-                    { date: "2026-06-11", description: "lend poutsi", category: "Autre", amount: 30.0 },
-                    { date: "2026-06-13", description: "Abonnement Claude", category: "Autre", amount: 71.0 },
-                    { date: "2026-06-13", description: "Achat avec Aziz", category: "Autre", amount: 30.0 },
-                    { date: "2026-06-13", description: "ça fait un moment", category: "Epargne", amount: 20.0 },
-                    { date: "2026-06-15", description: "ooreedoo", category: "Autre", amount: 10.0 },
-                    { date: "2026-06-17", description: "Glace", category: "Bouffe", amount: 12.0 },
-                    { date: "2026-06-18", description: "beach w pou", category: "Autre", amount: 8.0 },
-                    { date: "2026-06-18", description: "tacos", category: "Bouffe", amount: 8.5 },
-                    { date: "2026-06-18", description: "gazuz", category: "Bouffe", amount: 1.5 },
-                    { date: "2026-06-17", description: "argent aziz ma rendu", category: "Epargne", amount: 10.0 },
-                    { date: "2026-06-18", description: "ooreedoo", category: "Autre", amount: 11.0 },
-                    { date: "2026-06-21", description: "gym memebership", category: "Autre", amount: 70.0 },
-                    { date: "2026-06-19", description: "brossé a dents", category: "Autre", amount: 1.6 },
-                    { date: "2026-06-19", description: "tacos", category: "Bouffe", amount: 8.5 },
-                    { date: "2026-06-23", description: "Maman donnée 50DT", category: "Epargne", amount: 10.0 },
-                    { date: "2026-06-23", description: "Cafe & Tacos", category: "Bouffe", amount: 10.0 },
-                    { date: "2026-06-24", description: "Papa donné 50DT", category: "Epargne", amount: 10.0 },
-                    { date: "2026-06-24", description: "Beach Day", category: "Transport", amount: 2.0 },
-                    { date: "2026-06-26", description: "Beach day with boys", category: "Transport", amount: 2.0 },
-                    { date: "2026-06-26", description: "Beach day with aziz", category: "Livraison", amount: 2.0 },
-                    { date: "2026-06-26", description: "Ice creame", category: "Bouffe", amount: 1.5 },
-                    { date: "2026-06-26", description: "Beach day with boys", category: "Transport", amount: 2.0 },
-                    { date: "2026-06-30", description: "sorties entre potes, the gate", category: "Bouffe", amount: 13.0 },
-                    { date: "2026-07-06", description: "ooreedoo (cnx & sms)", category: "Autre", amount: 12.5 },
-                    { date: "2026-07-08", description: "mis dans la Carte Technologique", category: "Autre", amount: 80.0 },
-                ],
-                revenus: [
-                    { date: "2026-05-08", source: "Rami", amount: 400.0 },
-                    { date: "2026-05-15", source: "Parents", amount: 60.0 },
-                    { date: "", source: "ce que j'avais avant", amount: 112.7 },
-                    { date: "2026-05-26", source: "Eid Mehba Maman", amount: 200.0 },
-                    { date: "2026-06-01", source: "Papa recharge d17", amount: 70.0 },
-                    { date: "", source: "offset", amount: 30.0 },
-                    { date: "2026-06-08", source: "Maman 3a Jaw", amount: 20.0 },
-                    { date: "2026-06-14", source: "Maman pour la carte", amount: 100.0 },
-                    { date: "", source: "offset", amount: 27.933 },
-                    { date: "2026-06-15", source: "argent de poche", amount: 8.3 },
-                    { date: "2026-06-17", source: "Aziz Rendu Argent ", amount: 50.0 },
-                    { date: "2026-06-23", source: "Maman", amount: 50.0 },
-                    { date: "2026-06-24", source: "Papa donné", amount: 50.0 },
-                    { date: "2026-06-30", source: "sortie entre potes the gate", amount: 15.0 },
-                    { date: "", source: "offset", amount: 60.0 },
-                ],
-                carte: [
-                    { date: "2026-06-15", description: "Initial Carte", type: "Rechargement", currency: "DT", usd: 0, eur: 0, rate: 0, total_dt: 50.0 },
-                    { date: "2026-06-11", description: "Minecraft Dungeons Pour Aziz", type: "Achat", currency: "USD", usd: 5.99, eur: 0, rate: 3.025, total_dt: 18.11975 },
-                    { date: "2026-06-15", description: "Radom steam keys", type: "Achat", currency: "USD", usd: 4.0, eur: 0, rate: 3.025, total_dt: 12.1 },
-                    { date: "2026-06-15", description: "Maman", type: "Rechargement", currency: "DT", usd: 0, eur: 0, rate: 1.0, total_dt: 100.0 },
-                    { date: "2026-06-15", description: "Moi", type: "Rechargement", currency: "DT", usd: 0, eur: 0, rate: 1.0, total_dt: 11.0 },
-                    { date: "2026-06-11", description: "Minecraft Dungeons Pour Moi", type: "Achat", currency: "USD", usd: 5.99, eur: 0, rate: 3.025, total_dt: 18.11975 },
-                    { date: "2026-06-11", description: "Minecraft Dungeons Pour Mostafa", type: "Achat", currency: "USD", usd: 5.99, eur: 0, rate: 3.025, total_dt: 18.11975 },
-                    { date: "2026-06-19", description: "Random VR games 5", type: "Achat", currency: "USD", usd: 2.83, eur: 0, rate: 3.025, total_dt: 8.56075 },
-                    { date: "2026-06-26", description: "Stradew Valleuy", type: "Achat", currency: "USD", usd: 3.59, eur: 0, rate: 3.025, total_dt: 10.85975 },
-                    { date: "2026-06-26", description: "Terraria", type: "Achat", currency: "USD", usd: 2.89, eur: 0, rate: 3.025, total_dt: 8.74225 },
-                    { date: "2026-06-29", description: "Poutsi Birthday Gift", type: "Achat", currency: "EUR", usd: 0, eur: 15.98, rate: 3.426, total_dt: 54.74748 },
-                    { date: "2026-07-08", description: "Moi", type: "Rechargement", currency: "DT", usd: 0, eur: 0, rate: 1.0, total_dt: 84.0 },
-                ],
-                taux: { usd_vente: 3.025, eur_vente: 3.426 },
-            };
-
             // ============ CONSTANTS ============
-            const MIGRATED_KEY = "carnet-migrated";
+            // `name` is the value stored in the database (kept as-is so existing data stays valid),
+            // `label` is what the app shows.
             const CATEGORIES = [
-                { name: "Bouffe", glyph: "⌇", color: "#D97558" },
-                { name: "Livraison", glyph: "◐", color: "#D9954A" },
-                { name: "Transport", glyph: "⇢", color: "#C4A85C" },
-                { name: "Autre", glyph: "◇", color: "#9B87BE" },
-                { name: "Epargne", glyph: "✦", color: "#6DB89B" },
-                { name: "Offset", glyph: "⟳", color: "#888" },
+                { name: "Bouffe", label: "Food", glyph: "⌇", color: "#D97558" },
+                { name: "Livraison", label: "Delivery", glyph: "◐", color: "#D9954A" },
+                { name: "Transport", label: "Transport", glyph: "⇢", color: "#C4A85C" },
+                { name: "Autre", label: "Other", glyph: "◇", color: "#9B87BE" },
+                { name: "Epargne", label: "Savings", glyph: "✦", color: "#6DB89B" },
+                { name: "Offset", label: "Offset", glyph: "⟳", color: "#888" },
             ];
-            const MONTH_NAMES = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
+            const CARD_OP_LABELS = { Achat: "Purchase", Rechargement: "Top-up", Remboursement: "Refund" };
+            const CARD_NAMES = { techno: "Zitouna Technologique", d17: "La Poste D17" };
+            const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
             const TAB_ORDER = ["dashboard", "depenses", "revenus", "carte"];
-            const TAB_TITLES = { dashboard: "Aperçu", depenses: "Dépenses", revenus: "Revenus", carte: "Carte", settings: "Réglages" };
+            const TAB_TITLES = { dashboard: "Overview", depenses: "Expenses", revenus: "Income", carte: "Cards", settings: "Settings" };
+            const PERIODS = [
+                { id: "month", label: "This month" },
+                { id: "3m", label: "Last 3 months" },
+                { id: "year", label: "This year" },
+                { id: "all", label: "All time" },
+            ];
+            const PERIOD_KEY = "carnet-breakdown-period";
 
             // ============ STATE ============
             let state = { depenses: [], revenus: [], carte: [], taux: { usd_vente: 3.025, eur_vente: 3.426 }, activeCard: "techno" };
             let currentPage = "dashboard";
-            let currentFilter = "Tous";
+            let currentFilter = "All";
             let editing = null;
-            let pinInput = "";
             let syncing = false;
+            let breakdownPeriod = "all";
+            try {
+                const saved = localStorage.getItem(PERIOD_KEY);
+                if (PERIODS.some((p) => p.id === saved)) breakdownPeriod = saved;
+            } catch (_) {}
 
             // ============ FORMATTERS ============
             const fmt = (n) => {
                 const num = Math.round(n * 100) / 100;
-                return num.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                return num.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             };
-            const fmtInt = (n) => Math.round(n).toLocaleString("fr-FR");
+            const fmtInt = (n) => Math.round(n).toLocaleString("en-US");
 
-            // ============ PIN LOCK ============
-            function initLock() {
-                document.querySelectorAll(".numpad button").forEach((btn) => {
-                    btn.addEventListener("click", async () => {
-                        vibrate(35);
-                        await handlePin(btn.dataset.k);
-                    });
-                });
-                renderPin();
-            }
+            // ============ AUTH ============
+            // Modes: signin, signup, forgot (send reset email), setpassword (after an invite or reset link)
+            let authMode = "signin";
+            let appStarted = false;
 
-            let verifyingPin = false;
+            const AUTH_TEXT = {
+                signin: { title: "Sign in", submit: "Sign in" },
+                signup: { title: "Create account", submit: "Create account" },
+                forgot: { title: "Reset password", submit: "Send reset link" },
+                setpassword: { title: "Choose a password", submit: "Save password" },
+            };
 
-            async function handlePin(k) {
-                const disp = document.getElementById("pin-display");
-                disp.classList.remove("error");
-
-                if (k === "del") {
-                    if (verifyingPin) return;
-                    pinInput = pinInput.slice(0, -1);
-                    vibrate(30);
-                } else if (k === "ok") {
-                    if (verifyingPin) return;
-                    vibrate(40);
-                    verifyingPin = true;
-
-                    // Léger feedback visuel pendant la vérification (~100 ms)
-                    disp.style.opacity = "0.5";
-
-                    const isValid = await verifyPin(pinInput);
-
-                    disp.style.opacity = "1";
-                    verifyingPin = false;
-
-                    if (isValid) {
-                        unlock();
-                    } else {
-                        disp.classList.add("error");
-                        vibrate(60);
-                        setTimeout(() => {
-                            pinInput = "";
-                            renderPin();
-                        }, 500);
-                    }
-                    return;
-                } else if (pinInput.length < 10) {
-                    if (verifyingPin) return;
-                    pinInput += k;
-                    vibrate(30);
-                }
-                renderPin();
-            }
-
-            function renderPin() {
-                const disp = document.getElementById("pin-display");
-                disp.innerHTML = "";
-                for (let i = 0; i < pinInput.length; i++) {
-                    const d = document.createElement("div");
-                    d.className = "pin-dot";
-                    disp.appendChild(d);
-                }
-            }
-
-            async function unlock() {
+            function showAuth(mode, msg, isError) {
+                authMode = mode;
                 const lock = document.getElementById("lock");
-                lock.style.animation = "fadeOut 0.4s var(--ease) forwards";
-                setTimeout(() => {
-                    lock.style.display = "none";
-                }, 400);
+                lock.style.animation = "";
+                lock.style.display = "flex";
+                document.getElementById("auth-title").textContent = AUTH_TEXT[mode].title;
+                document.getElementById("auth-submit").textContent = AUTH_TEXT[mode].submit;
+                document.getElementById("auth-email-field").style.display = mode === "setpassword" ? "none" : "block";
+                document.getElementById("auth-password-field").style.display = mode === "forgot" ? "none" : "block";
+                document.getElementById("auth-consent").style.display = mode === "signup" ? "flex" : "none";
+                document.getElementById("auth-password").autocomplete = mode === "signin" ? "current-password" : "new-password";
+                document.getElementById("auth-password").value = "";
+                setAuthMsg(msg, isError);
 
+                const links = {
+                    signin: [
+                        ["Create an account", "signup"],
+                        ["Forgot password?", "forgot"],
+                    ],
+                    signup: [["I already have an account", "signin"]],
+                    forgot: [["Back to sign in", "signin"]],
+                    setpassword: appStarted ? [["Cancel", null]] : [],
+                }[mode];
+                const el = document.getElementById("auth-links");
+                el.innerHTML = "";
+                links.forEach(([label, target]) => {
+                    const b = document.createElement("button");
+                    b.type = "button";
+                    b.textContent = label;
+                    b.onclick = () => (target ? showAuth(target) : hideAuth());
+                    el.appendChild(b);
+                });
+            }
+
+            function hideAuth() {
+                const lock = document.getElementById("lock");
+                lock.style.animation = "";
+                lock.style.display = "none";
+                authMode = "signin";
+            }
+
+            function setAuthMsg(msg, isError) {
+                const m = document.getElementById("auth-msg");
+                m.style.display = msg ? "block" : "none";
+                m.textContent = msg || "";
+                m.className = "auth-msg" + (isError ? " error" : "");
+            }
+
+            // Where Supabase email links (confirm, reset, invite) send people back to
+            const APP_URL = location.origin + location.pathname;
+
+            async function onAuthSubmit(e) {
+                e.preventDefault();
+                const email = document.getElementById("auth-email").value.trim();
+                const password = document.getElementById("auth-password").value;
+                const btn = document.getElementById("auth-submit");
+
+                if (authMode !== "setpassword" && !/^\S+@\S+\.\S+$/.test(email)) return setAuthMsg("Enter a valid email.", true);
+                if (authMode !== "forgot" && password.length < 8) return setAuthMsg("Password must be at least 8 characters.", true);
+                if (authMode === "signup" && !document.getElementById("auth-consent-box").checked) return setAuthMsg("Please accept the privacy policy to continue.", true);
+
+                btn.disabled = true;
+                try {
+                    if (authMode === "signin") {
+                        const { error } = await sb.auth.signInWithPassword({ email, password });
+                        if (error) throw error;
+                        // onAuthStateChange starts the app
+                    } else if (authMode === "signup") {
+                        const { data, error } = await sb.auth.signUp({ email, password, options: { emailRedirectTo: APP_URL } });
+                        if (error) throw error;
+                        if (!data.session) showAuth("signin", "Check your inbox and click the confirmation link, then sign in here.");
+                    } else if (authMode === "forgot") {
+                        const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: APP_URL });
+                        if (error) throw error;
+                        showAuth("signin", "If an account exists for this email, a reset link is on its way.");
+                    } else if (authMode === "setpassword") {
+                        const { error } = await sb.auth.updateUser({ password });
+                        if (error) throw error;
+                        history.replaceState(null, "", APP_URL);
+                        toast("Password saved");
+                        if (appStarted) hideAuth();
+                        else await startApp();
+                    }
+                } catch (err) {
+                    setAuthMsg(friendlyAuthError(err), true);
+                } finally {
+                    btn.disabled = false;
+                }
+            }
+
+            function friendlyAuthError(err) {
+                const m = (err && err.message) || "";
+                if (/invalid login credentials/i.test(m)) return "Wrong email or password.";
+                if (/email not confirmed/i.test(m)) return "Please confirm your email first (check your inbox).";
+                if (/signups not allowed|signup is disabled/i.test(m)) return "Sign-ups are closed. Ask the owner for an invitation.";
+                if (/already registered/i.test(m)) return "This email already has an account. Sign in instead.";
+                if (/rate limit/i.test(m)) return "Too many attempts. Wait a minute and try again.";
+                return m || "Something went wrong. Try again.";
+            }
+
+            async function startApp() {
+                if (appStarted) return;
+                appStarted = true;
+                const { data } = await sb.auth.getUser();
+                currentUser = data.user;
+                const lock = document.getElementById("lock");
+                if (lock.style.display !== "none") {
+                    lock.style.animation = "fadeOut 0.4s var(--ease) forwards";
+                    setTimeout(() => (lock.style.display = "none"), 400);
+                }
                 document.getElementById("loading").style.display = "flex";
                 await bootstrap();
                 document.getElementById("loading").style.display = "none";
                 document.getElementById("app").classList.add("show");
                 render();
                 initSwipe();
+            }
+
+            async function initAuth() {
+                document.getElementById("auth-form").addEventListener("submit", onAuthSubmit);
+                // Invite and password-reset links land here with tokens in the URL hash
+                const needsPassword = /type=(invite|recovery)/.test(INITIAL_HASH);
+
+                sb.auth.onAuthStateChange((event, session) => {
+                    if (event === "PASSWORD_RECOVERY") showAuth("setpassword", "Choose a new password for your account.");
+                    else if (event === "SIGNED_IN" && session && authMode !== "setpassword" && !needsPassword) setTimeout(startApp, 0);
+                    else if (event === "SIGNED_OUT") location.replace(APP_URL);
+                });
+
+                const { data } = await sb.auth.getSession();
+                if (data.session && needsPassword) showAuth("setpassword", "Welcome! Choose a password for your account.");
+                else if (data.session) startApp();
+                else if (/error_description=/.test(INITIAL_HASH)) {
+                    const desc = decodeURIComponent((INITIAL_HASH.match(/error_description=([^&]+)/) || [])[1] || "").replace(/\+/g, " ");
+                    showAuth("signin", desc || "This link is invalid or has expired.", true);
+                } else showAuth("signin");
+            }
+
+            async function signOut() {
+                vibrate(35);
+                await sb.auth.signOut();
+            }
+
+            async function deleteAccount() {
+                vibrate(50);
+                if (!confirm("Delete your account and ALL your data? This cannot be undone.\n\nTip: export to Excel first.")) return;
+                const typed = prompt('Type DELETE to confirm');
+                if (typed !== "DELETE") return toast("Cancelled");
+                setSync("syncing", "Deleting…");
+                const { error } = await sb.rpc("delete_my_account");
+                if (error) {
+                    setSync("error", "Error");
+                    return toast("Could not delete account: " + error.message, true);
+                }
+                await sb.auth.signOut();
             }
 
             // ============ SWIPE ============
@@ -1857,20 +1868,11 @@
             async function bootstrap() {
                 setSync("syncing", "Sync…");
                 try {
-                    const counts = await fetchAll();
-                    const empty = counts.dep === 0 && counts.rev === 0 && counts.carte === 0;
-                    const migrated = localStorage.getItem(MIGRATED_KEY);
-                    if (empty && !migrated) {
-                        document.getElementById("loading-text").textContent = "Migration en cours…";
-                        await migrateInitial();
-                        localStorage.setItem(MIGRATED_KEY, "1");
-                        await fetchAll();
-                        toast("Migration terminée");
-                    }
-                    setSync("", "À jour");
+                    await fetchAll();
+                    setSync("", "Up to date");
                 } catch (e) {
-                    setSync("error", "Hors ligne");
-                    toast("Erreur Supabase : " + (e.message || "inconnue"), true);
+                    setSync("error", "Offline");
+                    toast("Supabase error: " + (e.message || "unknown"), true);
                 }
             }
 
@@ -1899,51 +1901,16 @@
                 return { dep: state.depenses.length, rev: state.revenus.length, carte: state.carte.length };
             }
 
-            async function migrateInitial() {
-                for (let d of INITIAL_DATA.depenses) {
-                    await sb.from("depenses").insert({
-                        id: "d" + Date.now() + Math.random(),
-                        date: d.date || null,
-                        description: d.description || "",
-                        category: d.category || "Autre",
-                        amount: d.amount,
-                    });
-                }
-                for (let r of INITIAL_DATA.revenus) {
-                    await sb.from("revenus").insert({
-                        id: "r" + Date.now() + Math.random(),
-                        date: r.date || null,
-                        source: r.source || "—",
-                        amount: r.amount,
-                    });
-                }
-                for (let c of INITIAL_DATA.carte) {
-                    await sb.from("carte").insert({
-                        id: "c" + Date.now() + Math.random(),
-                        date: c.date || null,
-                        description: c.description || "",
-                        type: c.type || "Achat",
-                        currency: c.currency || "DT",
-                        usd: c.usd || 0,
-                        eur: c.eur || 0,
-                        rate: c.rate || 0,
-                        total_dt: c.total_dt || 0,
-                        card: "techno",
-                    });
-                }
-                await sb.from("taux").upsert({ id: 1, usd_vente: INITIAL_DATA.taux.usd_vente, eur_vente: INITIAL_DATA.taux.eur_vente });
-            }
-
             async function pushEntry(kind, entry) {
                 setSync("syncing", "Sync…");
                 try {
                     const table = kind === "depense" ? "depenses" : kind === "revenu" ? "revenus" : "carte";
                     const { error } = await sb.from(table).upsert(entry);
                     if (error) throw error;
-                    setSync("", "À jour");
+                    setSync("", "Up to date");
                 } catch (e) {
-                    setSync("error", "Erreur");
-                    toast("Erreur de sync", true);
+                    setSync("error", "Error");
+                    toast("Sync error", true);
                 }
             }
 
@@ -1953,26 +1920,29 @@
                     const table = kind === "depense" ? "depenses" : kind === "revenu" ? "revenus" : "carte";
                     const { error } = await sb.from(table).delete().eq("id", id);
                     if (error) throw error;
-                    setSync("", "À jour");
+                    setSync("", "Up to date");
                 } catch (e) {
-                    setSync("error", "Erreur");
-                    toast("Erreur de suppression", true);
+                    setSync("error", "Error");
+                    toast("Delete error", true);
                 }
             }
 
             async function pushTaux() {
                 setSync("syncing", "Sync…");
                 try {
-                    await sb.from("taux").upsert({ id: 1, usd_vente: state.taux.usd_vente, eur_vente: state.taux.eur_vente });
-                    setSync("", "À jour");
+                    // One row per user (user_id is the primary key)
+                    const { error } = await sb.from("taux").upsert({ user_id: currentUser.id, usd_vente: state.taux.usd_vente, eur_vente: state.taux.eur_vente }, { onConflict: "user_id" });
+                    if (error) throw error;
+                    setSync("", "Up to date");
                 } catch (e) {
-                    setSync("error", "Erreur");
+                    setSync("error", "Error");
+                    toast("Could not save rates", true);
                 }
             }
 
             // ============ HELPERS ============
             function catInfo(name) {
-                return CATEGORIES.find((c) => c.name === name) || { name, glyph: "·", color: "#6B6E68" };
+                return CATEGORIES.find((c) => c.name === name) || { name, label: name, glyph: "·", color: "#6B6E68" };
             }
 
             function isThisMonth(iso) {
@@ -1982,8 +1952,32 @@
                 return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
             }
 
+            // Random, collision-proof ids for new rows (several users share the same tables)
+            function newId(prefix) {
+                if (crypto.randomUUID) return prefix + crypto.randomUUID();
+                const b = crypto.getRandomValues(new Uint8Array(16));
+                return prefix + Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
+            }
+
+            // Is a "YYYY-MM-DD" date inside the chosen breakdown period?
+            // "3m" = the current month plus the two before it. Undated entries only count in "all".
+            function inPeriod(iso, period) {
+                if (period === "all") return true;
+                if (!iso) return false;
+                const [y, m] = iso.split("-").map(Number);
+                const now = new Date();
+                const monthsAgo = (now.getFullYear() - y) * 12 + (now.getMonth() + 1 - m);
+                if (period === "month") return monthsAgo === 0;
+                if (period === "3m") return monthsAgo >= 0 && monthsAgo <= 2;
+                if (period === "year") return y === now.getFullYear();
+                return true;
+            }
+
+            const catLabel = (name) => catInfo(name).label;
+            const isWithdrawal = (d) => d.category === "Epargne" && d.amount < 0;
+
             function dayLabel(iso) {
-                if (!iso) return "Sans date";
+                if (!iso) return "No date";
                 const d = new Date(iso);
                 if (isNaN(d)) return iso;
                 const today = new Date();
@@ -1991,10 +1985,10 @@
                 const target = new Date(d);
                 target.setHours(0, 0, 0, 0);
                 const diff = Math.round((today - target) / 86400000);
-                if (diff === 0) return "Aujourd'hui";
-                if (diff === 1) return "Hier";
-                if (diff < 7) return d.toLocaleDateString("fr-FR", { weekday: "long" });
-                return d.toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
+                if (diff === 0) return "Today";
+                if (diff === 1) return "Yesterday";
+                if (diff < 7) return d.toLocaleDateString("en-US", { weekday: "long" });
+                return d.toLocaleDateString("en-US", { day: "numeric", month: "long" });
             }
 
             function groupByDay(items) {
@@ -2053,170 +2047,148 @@
                 else if (currentPage === "settings") renderSettings();
             }
 
-            // ============ DASHBOARD (réorganisé) ============
+            // ============ DASHBOARD ============
+            function cardBalance(card) {
+                const ops = state.carte.filter((c) => c.card === card);
+                const plus = ops.filter((c) => c.type === "Rechargement" || c.type === "Remboursement").reduce((s, c) => s + c.total_dt, 0);
+                const minus = ops.filter((c) => c.type === "Achat").reduce((s, c) => s + c.total_dt, 0);
+                return plus - minus;
+            }
+
+            // Savings balance = deposits (positive "Epargne" rows) minus withdrawals (negative ones)
+            function savingsBalance(excludeId) {
+                return state.depenses.filter((d) => d.category === "Epargne" && d.id !== excludeId).reduce((s, d) => s + d.amount, 0);
+            }
+
+            function computeBalances() {
+                // Balances include offsets
+                const totalIncome = state.revenus.reduce((s, r) => s + r.amount, 0);
+                const totalExpenses = state.depenses.reduce((s, d) => s + d.amount, 0);
+                const cash = totalIncome - totalExpenses;
+                const d17 = cardBalance("d17");
+                const techno = cardBalance("techno");
+                return { cash, d17, techno, savings: savingsBalance(), total: cash + d17 + techno };
+            }
+
             function renderDashboard() {
                 const now = new Date();
                 const monthName = MONTH_NAMES[now.getMonth()];
+                const bal = computeBalances();
 
-                // Soldes (incluent les offsets)
-                const totalRevenus = state.revenus.reduce((s, r) => s + r.amount, 0);
-                const totalDepenses = state.depenses.reduce((s, d) => s + d.amount, 0);
-                const soldeCash = totalRevenus - totalDepenses;
-
-                const carteOps = state.carte;
-                const soldeCarte = (card) => {
-                    const ops = carteOps.filter((c) => c.card === card);
-                    const plus = ops.filter((c) => c.type === "Rechargement" || c.type === "Remboursement").reduce((s, c) => s + c.total_dt, 0);
-                    const minus = ops.filter((c) => c.type === "Achat").reduce((s, c) => s + c.total_dt, 0);
-                    return plus - minus;
-                };
-                const soldeD17 = soldeCarte("d17");
-                const soldeTechno = soldeCarte("techno");
-                const soldeTotal = soldeCash + soldeD17 + soldeTechno;
-
-                // Statistiques (excluent les offsets)
-                const depensesSansOffset = state.depenses.filter((d) => d.category !== "Offset");
-                const revenusSansOffset = state.revenus.filter((r) => r.source !== "offset" && r.source !== "Offset");
-
-                const thisMonth = depensesSansOffset.filter((d) => isThisMonth(d.date) && d.category !== "Epargne");
+                // Stats exclude offsets and savings movements
+                const spending = state.depenses.filter((d) => d.category !== "Offset" && d.category !== "Epargne");
+                const thisMonth = spending.filter((d) => isThisMonth(d.date));
                 const monthTotal = thisMonth.reduce((s, d) => s + d.amount, 0);
                 const daysActive = new Set(thisMonth.map((d) => d.date)).size;
                 const avgDay = daysActive ? monthTotal / daysActive : 0;
 
-                const epargneTotal = depensesSansOffset.filter((d) => d.category === "Epargne").reduce((s, d) => s + d.amount, 0);
-
-                const allSpend = depensesSansOffset.filter((d) => d.category !== "Epargne");
-                const catTotals = {};
-                allSpend.forEach((d) => {
-                    catTotals[d.category] = (catTotals[d.category] || 0) + d.amount;
-                });
-                const catEntries = Object.entries(catTotals).sort((a, b) => b[1] - a[1]);
+                const allCatTotals = {};
+                spending.forEach((d) => (allCatTotals[d.category] = (allCatTotals[d.category] || 0) + d.amount));
 
                 const p = document.getElementById("page-dashboard");
                 p.innerHTML = `
-                    <!-- Carte principale : solde total -->
+                    <!-- Main card: total balance -->
                     <div class="hero-card">
-                        <div class="hero-label">Solde total</div>
-                        <div class="hero-value"><span id="hero-total">0,00</span><span class="unit">DT</span></div>
+                        <div class="hero-label">Total balance</div>
+                        <div class="hero-value"><span id="hero-total">0.00</span><span class="unit">DT</span></div>
                         <div class="hero-sub">
-                            Dépensé en ${monthName} : ${fmt(monthTotal)} DT <span class="sep">·</span> ${fmt(avgDay)} DT/jour
+                            Spent in ${monthName}: ${fmt(monthTotal)} DT <span class="sep">·</span> ${fmt(avgDay)} DT/day
                         </div>
                     </div>
 
-                    <!-- Grille 2×2 : Cash, D17, Techno, Épargne -->
+                    <!-- 2×2 grid: Cash, D17, Techno, Savings -->
                     <div class="soldes-grid">
                         <div class="solde-card cash">
                             <div class="icon">💰</div>
                             <div class="label">Cash</div>
-                            <div class="value"><span id="solde-cash">0,00</span><span class="unit">DT</span></div>
-                            <div class="sub">Liquide</div>
+                            <div class="value"><span id="solde-cash">0.00</span><span class="unit">DT</span></div>
+                            <div class="sub">In hand</div>
                         </div>
                         <div class="solde-card d17">
                             <div class="icon">💳</div>
                             <div class="label">D17</div>
-                            <div class="value"><span id="solde-d17">0,00</span><span class="unit">DT</span></div>
+                            <div class="value"><span id="solde-d17">0.00</span><span class="unit">DT</span></div>
                             <div class="sub">La Poste</div>
                         </div>
                         <div class="solde-card techno">
                             <div class="icon">📱</div>
                             <div class="label">Techno</div>
-                            <div class="value"><span id="solde-techno">0,00</span><span class="unit">DT</span></div>
+                            <div class="value"><span id="solde-techno">0.00</span><span class="unit">DT</span></div>
                             <div class="sub">Zitouna</div>
                         </div>
                         <div class="solde-card epargne">
                             <div class="icon">✦</div>
-                            <div class="label">Épargne</div>
-                            <div class="value"><span id="solde-epargne">0,00</span><span class="unit">DT</span></div>
-                            <div class="sub">Cumulée</div>
+                            <div class="label">Savings</div>
+                            <div class="value"><span id="solde-epargne">0.00</span><span class="unit">DT</span></div>
+                            <div class="sub">Current balance</div>
                         </div>
                     </div>
 
-                    <!-- Répartition -->
-                    <div class="section-title">Répartition (toutes les dépenses)</div>
-                    <div class="repart">
-                        <div class="repart-bar" id="repart-bar"></div>
-                        <div class="repart-list" id="repart-list"></div>
+                    <!-- Breakdown -->
+                    <div class="section-head">
+                        <div class="section-title">Spending breakdown</div>
+                        <select class="period-select" id="period-select" aria-label="Breakdown period">
+                            ${PERIODS.map((pr) => `<option value="${pr.id}" ${pr.id === breakdownPeriod ? "selected" : ""}>${pr.label}</option>`).join("")}
+                        </select>
                     </div>
+                    <div class="repart" id="breakdown"></div>
 
-                    <!-- Objectif -->
-                    <div class="section-title">Objectif six mois</div>
+                    <!-- Goal -->
+                    <div class="section-title">Six-month goal</div>
                     <div class="goal-card">
                         <div class="goal-header">
-                            <div class="goal-title">Enveloppe personnelle</div>
-                            <div class="goal-target">Cible 1 200 DT</div>
+                            <div class="goal-title">Personal savings</div>
+                            <div class="goal-target">Target 1,200 DT</div>
                         </div>
                         <div class="goal-progress-wrap">
                             <div class="goal-progress" id="goal-bar"></div>
                         </div>
                         <div class="goal-numbers">
                             <div class="goal-current"><span id="goal-val">0</span><span style="font-size:14px;color:var(--text-3);margin-left:4px">DT</span></div>
-                            <div class="goal-remain" id="goal-remain">— restants</div>
+                            <div class="goal-remain" id="goal-remain">— left</div>
                         </div>
                     </div>
 
                     <!-- Insights -->
-                    <div class="section-title">Ce que je remarque</div>
+                    <div class="section-title">What I notice</div>
                     <div id="insights"></div>
                 `;
 
-                // Animations
-                animateNumber(document.getElementById("hero-total"), 0, soldeTotal);
-                animateNumber(document.getElementById("solde-cash"), 0, soldeCash);
-                animateNumber(document.getElementById("solde-d17"), 0, soldeD17);
-                animateNumber(document.getElementById("solde-techno"), 0, soldeTechno);
-                animateNumber(document.getElementById("solde-epargne"), 0, epargneTotal);
-                animateNumber(document.getElementById("goal-val"), 0, epargneTotal);
+                animateNumber(document.getElementById("hero-total"), 0, bal.total);
+                animateNumber(document.getElementById("solde-cash"), 0, bal.cash);
+                animateNumber(document.getElementById("solde-d17"), 0, bal.d17);
+                animateNumber(document.getElementById("solde-techno"), 0, bal.techno);
+                animateNumber(document.getElementById("solde-epargne"), 0, bal.savings);
+                animateNumber(document.getElementById("goal-val"), 0, bal.savings);
 
-                const goalPct = Math.min(1, epargneTotal / 1200);
+                const goalPct = Math.max(0, Math.min(1, bal.savings / 1200));
                 const bar = document.getElementById("goal-bar");
                 bar.style.setProperty("--goal-scale", goalPct);
                 bar.style.transform = `scaleX(${goalPct})`;
-                document.getElementById("goal-remain").textContent = `${(goalPct * 100).toFixed(0)}% · reste ${fmt(Math.max(0, 1200 - epargneTotal))} DT`;
+                document.getElementById("goal-remain").textContent = `${(goalPct * 100).toFixed(0)}% · ${fmt(Math.max(0, 1200 - bal.savings))} DT to go`;
 
-                // Répartition
-                if (catEntries.length) {
-                    const barEl = document.getElementById("repart-bar");
-                    const listEl = document.getElementById("repart-list");
-                    barEl.innerHTML = "";
-                    listEl.innerHTML = "";
-                    const total = catEntries.reduce((s, e) => s + e[1], 0);
-                    catEntries.forEach(([cat, amt], i) => {
-                        const info = catInfo(cat);
-                        const pct = (amt / total) * 100;
-                        const seg = document.createElement("div");
-                        seg.className = "seg";
-                        seg.style.width = pct + "%";
-                        seg.style.background = info.color;
-                        seg.style.animationDelay = i * 0.06 + "s";
-                        barEl.appendChild(seg);
-
-                        const row = document.createElement("div");
-                        row.className = "repart-row";
-                        row.innerHTML = `
-                            <div class="dot" style="background:${info.color}"></div>
-                            <div class="name">${cat}</div>
-                            <div class="amt">${fmt(amt)} <span style="color:var(--text-3);font-weight:400">DT</span></div>
-                            <div class="pct">${pct.toFixed(0)}%</div>
-                        `;
-                        listEl.appendChild(row);
-                    });
-                } else {
-                    document.getElementById("repart-bar").innerHTML = '<div style="color:var(--text-4);padding:10px 0;text-align:center;font-size:12px;">Aucune dépense enregistrée</div>';
-                }
+                document.getElementById("period-select").onchange = (e) => {
+                    vibrate(30);
+                    breakdownPeriod = e.target.value;
+                    try {
+                        localStorage.setItem(PERIOD_KEY, breakdownPeriod);
+                    } catch (_) {}
+                    renderBreakdown(spending);
+                };
+                renderBreakdown(spending);
 
                 // Insights
                 const ins = document.getElementById("insights");
-                ins.innerHTML = "";
                 const insights = [];
-                if (avgDay > 20) insights.push({ type: "bad", text: `Tu dépenses ${fmt(avgDay)} DT/jour en moyenne. C'est plus qu'un loyer par semaine.` });
-                else if (avgDay > 15) insights.push({ type: "warn", text: `Autour de ${fmt(avgDay)} DT/jour. Deux ou trois commandes en moins par semaine feraient une vraie différence.` });
-                else if (avgDay > 0 && avgDay <= 10) insights.push({ type: "good", text: `Moins de 10 DT/jour de moyenne. Bien tenu.` });
-                const livraison = catTotals["Livraison"] || 0;
-                const bouffe = catTotals["Bouffe"] || 0;
-                if (livraison > bouffe * 2 && livraison > 60) insights.push({ type: "warn", text: `La livraison est nettement au-dessus des courses en magasin. C'est le premier levier pour dégager de l'épargne.` });
-                if (epargneTotal >= 100) insights.push({ type: "good", text: `${fmt(epargneTotal)} DT mis de côté à ce jour. La dynamique est là.` });
-                else if (epargneTotal < 30) insights.push({ type: "warn", text: `Épargne encore basse. Objectif à court terme : 10 DT à chaque rentrée d'argent.` });
-                if (!insights.length) insights.push({ type: "good", text: `Rien de particulier à signaler pour l'instant. Continue de tracker.` });
+                if (avgDay > 20) insights.push({ type: "bad", text: `You spend ${fmt(avgDay)} DT/day on average. That's more than a week's rent.` });
+                else if (avgDay > 15) insights.push({ type: "warn", text: `Around ${fmt(avgDay)} DT/day. Two or three fewer orders a week would make a real difference.` });
+                else if (avgDay > 0 && avgDay <= 10) insights.push({ type: "good", text: `Under 10 DT/day on average. Well kept.` });
+                const delivery = allCatTotals["Livraison"] || 0;
+                const food = allCatTotals["Bouffe"] || 0;
+                if (delivery > food * 2 && delivery > 60) insights.push({ type: "warn", text: `Delivery is well above in-store food. It's the first lever to free up savings.` });
+                if (bal.savings >= 100) insights.push({ type: "good", text: `${fmt(bal.savings)} DT set aside so far. The momentum is there.` });
+                else if (bal.savings < 30) insights.push({ type: "warn", text: `Savings are still low. Short-term goal: 10 DT every time money comes in.` });
+                if (!insights.length) insights.push({ type: "good", text: `Nothing special to report for now. Keep tracking.` });
                 insights.forEach((i, idx) => {
                     const div = document.createElement("div");
                     div.className = "insight " + i.type;
@@ -2226,11 +2198,68 @@
                 });
             }
 
+            // Donut chart + list of spending per category for the selected period
+            function renderBreakdown(spending) {
+                const el = document.getElementById("breakdown");
+                const totals = {};
+                spending.filter((d) => inPeriod(d.date, breakdownPeriod)).forEach((d) => (totals[d.category] = (totals[d.category] || 0) + d.amount));
+                const entries = Object.entries(totals)
+                    .filter(([, amt]) => amt > 0)
+                    .sort((a, b) => b[1] - a[1]);
+                const total = entries.reduce((s, e) => s + e[1], 0);
+
+                if (!entries.length) {
+                    el.innerHTML = '<div style="color:var(--text-4);padding:24px 0;text-align:center;font-size:12px;">No spending in this period</div>';
+                    return;
+                }
+
+                const r = 70;
+                const C = 2 * Math.PI * r;
+                const gap = entries.length > 1 ? 2 : 0;
+                let offset = 0;
+                const segs = entries
+                    .map(([cat, amt], i) => {
+                        const len = (amt / total) * C;
+                        const visible = Math.max(0.5, len - gap);
+                        const s = `<circle class="donut-seg" cx="90" cy="90" r="${r}" stroke="${catInfo(cat).color}" stroke-dasharray="${visible} ${C - visible}" stroke-dashoffset="${-offset}" style="animation-delay:${i * 0.06}s"><title>${escapeHtml(catLabel(cat))}: ${fmt(amt)} DT</title></circle>`;
+                        offset += len;
+                        return s;
+                    })
+                    .join("");
+
+                el.innerHTML = `
+                    <div class="donut-wrap">
+                        <svg viewBox="0 0 180 180" role="img" aria-label="Spending by category">
+                            <circle cx="90" cy="90" r="${r}" fill="none" stroke="var(--bg-2)" stroke-width="18" />
+                            ${segs}
+                        </svg>
+                        <div class="donut-center">
+                            <div class="total">${fmt(total)}</div>
+                            <div class="caption">DT spent</div>
+                        </div>
+                    </div>
+                    <div class="repart-list">
+                        ${entries
+                            .map(([cat, amt]) => {
+                                const info = catInfo(cat);
+                                return `
+                            <div class="repart-row">
+                                <div class="dot" style="background:${info.color}"></div>
+                                <div class="name">${escapeHtml(info.label)}</div>
+                                <div class="amt">${fmt(amt)} <span style="color:var(--text-3);font-weight:400">DT</span></div>
+                                <div class="pct">${((amt / total) * 100).toFixed(0)}%</div>
+                            </div>`;
+                            })
+                            .join("")}
+                    </div>
+                `;
+            }
+
             // ============ LISTS ============
             function renderDepenses() {
                 const p = document.getElementById("page-depenses");
-                const chips = ["Tous", ...CATEGORIES.map((c) => c.name)];
-                const filtered = currentFilter === "Tous" ? state.depenses : state.depenses.filter((d) => d.category === currentFilter);
+                const chips = ["All", ...CATEGORIES.map((c) => c.name)];
+                const filtered = currentFilter === "All" ? state.depenses : state.depenses.filter((d) => d.category === currentFilter);
                 p.innerHTML = `
                     <div class="filter-scroll dep-filters"></div>
                     <div class="dep-list"></div>
@@ -2239,7 +2268,7 @@
                 chips.forEach((c) => {
                     const btn = document.createElement("button");
                     btn.className = "filter-chip" + (currentFilter === c ? " active" : "");
-                    btn.textContent = c;
+                    btn.textContent = c === "All" ? "All" : catLabel(c);
                     btn.onclick = () => {
                         vibrate(35);
                         currentFilter = c;
@@ -2265,19 +2294,19 @@
                 const solde = plus - minus;
                 const isTechno = activeCard === "techno";
                 const plafondPct = isTechno ? Math.min(1, minus / 1000) : 0;
-                const cardName = isTechno ? "Zitouna Technologique" : "La Poste D17";
+                const cardName = CARD_NAMES[activeCard];
                 const gradient = isTechno ? "linear-gradient(160deg, #1D1425 0%, #10131C 100%)" : "linear-gradient(160deg, #1A2419 0%, #0F1913 100%)";
                 const border = isTechno ? "#2A2035" : "#1F3025";
                 const valueColor = isTechno ? "var(--violet)" : "var(--success)";
 
                 p.innerHTML = `
                     <div class="card-selector">
-                        <button class="card-btn ${isTechno ? "active" : ""}" data-card="techno" aria-label="Carte Zitouna Technologique">
+                        <button class="card-btn ${isTechno ? "active" : ""}" data-card="techno" aria-label="Zitouna Technologique card">
                             <img src="images/techno.png" alt="Zitouna Technologique" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
                             <div class="card-fallback" style="display:none">Zitouna<br>Technologique</div>
                             <div class="card-badge">Techno</div>
                         </button>
-                        <button class="card-btn ${!isTechno ? "active" : ""}" data-card="d17" aria-label="Carte D17">
+                        <button class="card-btn ${!isTechno ? "active" : ""}" data-card="d17" aria-label="D17 card">
                             <img src="images/d17.png" alt="D17" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
                             <div class="card-fallback" style="display:none">La Poste<br>D17</div>
                             <div class="card-badge">D17</div>
@@ -2285,15 +2314,15 @@
                     </div>
                     <div class="carte-hero" style="background:${gradient};border-color:${border}">
                         <div class="hero-label">${cardName}</div>
-                        <div class="hero-value" style="color:${valueColor}"><span class="carte-solde-val">0,00</span><span class="unit">DT</span></div>
-                        <div class="hero-sub">${ops.length} opération${ops.length > 1 ? "s" : ""}</div>
+                        <div class="hero-value" style="color:${valueColor}"><span class="carte-solde-val">0.00</span><span class="unit">DT</span></div>
+                        <div class="hero-sub">${ops.length} operation${ops.length === 1 ? "" : "s"}</div>
                         ${
                             isTechno
                                 ? `
                             <div class="plafond-bar-wrap">
                                 <div class="plafond-label">
-                                    <span>Plafond annuel devises</span>
-                                    <span><span class="plafond-used">0</span> / 1 000 DT</span>
+                                    <span>Annual foreign-currency limit</span>
+                                    <span><span class="plafond-used">0</span> / 1,000 DT</span>
                                 </div>
                                 <div class="plafond-bar"><div class="plafond-fill"></div></div>
                             </div>
@@ -2325,7 +2354,7 @@
 
             function renderListInto(container, items, kind) {
                 if (items.length === 0) {
-                    container.innerHTML = `<div class="empty"><span class="glyph">◦</span>Rien à afficher pour l'instant.</div>`;
+                    container.innerHTML = `<div class="empty"><span class="glyph">◦</span>Nothing to show yet.</div>`;
                     return;
                 }
                 const groups = groupByDay(items);
@@ -2361,9 +2390,10 @@
                             iconColor = info.color;
                             iconBg = info.color + "20";
                             desc = it.description || "—";
-                            meta = it.category;
-                            amt = fmt(it.amount);
-                            cls = it.category === "Epargne" ? "pos" : it.category === "Offset" ? "offset" : "neg";
+                            const out = isWithdrawal(it);
+                            meta = it.category === "Epargne" ? (out ? "Savings · taken out" : "Savings · put in") : info.label;
+                            amt = (out ? "−" : "") + fmt(Math.abs(it.amount));
+                            cls = it.category === "Epargne" ? (out ? "neg" : "pos") : it.category === "Offset" ? "offset" : "neg";
                             if (it.category === "Offset") offsetBadge = `<span class="offset-badge">Offset</span>`;
                         } else if (kind === "revenu") {
                             const isOffset = it.source === "offset" || it.source === "Offset";
@@ -2371,7 +2401,7 @@
                             iconColor = isOffset ? "#888" : "#6DB89B";
                             iconBg = isOffset ? "#88820" : "rgba(109, 184, 155, 0.15)";
                             desc = it.source || "—";
-                            meta = isOffset ? "Offset" : "Rentrée";
+                            meta = isOffset ? "Offset" : "Income";
                             amt = fmt(it.amount);
                             cls = isOffset ? "offset" : "pos";
                             if (isOffset) offsetBadge = `<span class="offset-badge">Offset</span>`;
@@ -2384,7 +2414,7 @@
                             let extra = "";
                             if (it.currency === "USD" && it.usd) extra = ` · ${it.usd} $`;
                             else if (it.currency === "EUR" && it.eur) extra = ` · ${fmt(it.eur)} €`;
-                            meta = `${it.type}${extra}`;
+                            meta = `${CARD_OP_LABELS[it.type] || it.type}${extra}`;
                             amt = fmt(it.total_dt);
                             cls = isAchat ? "neg" : "pos";
                         }
@@ -2415,7 +2445,8 @@
             function openAddModal() {
                 vibrate(45);
                 editing = null;
-                document.getElementById("modal-title").textContent = "Nouvelle entrée";
+                document.getElementById("modal-title").textContent = "New entry";
+                setSavingsDir("in");
                 document.getElementById("entry-date").valueAsDate = new Date();
                 document.getElementById("entry-desc").value = "";
                 document.getElementById("entry-source").value = "";
@@ -2436,7 +2467,8 @@
             function openEditModal(kind, id) {
                 vibrate(35);
                 editing = { kind, id };
-                document.getElementById("modal-title").textContent = "Modifier";
+                document.getElementById("modal-title").textContent = "Edit";
+                setSavingsDir("in");
                 document.getElementById("delete-row").style.display = "flex";
                 const typeSel = document.getElementById("entry-type");
                 typeSel.value = kind;
@@ -2445,7 +2477,8 @@
                     entry = state.depenses.find((d) => d.id === id);
                     document.getElementById("entry-date").value = entry.date || "";
                     document.getElementById("entry-desc").value = entry.description || "";
-                    document.getElementById("entry-amount").value = entry.amount;
+                    document.getElementById("entry-amount").value = Math.abs(entry.amount);
+                    setSavingsDir(isWithdrawal(entry) ? "out" : "in");
                     renderCatGrid(entry.category);
                 } else if (kind === "revenu") {
                     entry = state.revenus.find((r) => r.id === id);
@@ -2482,8 +2515,37 @@
                 document.getElementById("field-carte-which").style.display = t === "carte" ? "block" : "none";
                 document.getElementById("field-carte-type").style.display = t === "carte" ? "block" : "none";
                 document.getElementById("field-carte-preview").style.display = t === "carte" ? "block" : "none";
+                if (t !== "carte") document.getElementById("amount-label").textContent = "Amount (DT)";
+                updateSavingsField();
                 onCarteWhichChange();
             }
+
+            // ----- Savings: put money in or take it out -----
+            // A withdrawal is stored as a negative "Epargne" amount, so cash goes back up
+            // and the savings balance goes down, with no database change needed.
+            function selectedCategory() {
+                return document.querySelector("#cat-grid .cat-btn.active")?.dataset.cat || "Autre";
+            }
+
+            function updateSavingsField() {
+                const show = document.getElementById("entry-type").value === "depense" && selectedCategory() === "Epargne";
+                document.getElementById("field-savings-dir").style.display = show ? "block" : "none";
+            }
+
+            function setSavingsDir(dir) {
+                document.querySelectorAll("#savings-dir button").forEach((b) => b.classList.toggle("active", b.dataset.dir === dir));
+            }
+
+            function getSavingsDir() {
+                return document.querySelector("#savings-dir button.active")?.dataset.dir || "in";
+            }
+
+            document.querySelectorAll("#savings-dir button").forEach((b) => {
+                b.onclick = () => {
+                    vibrate(30);
+                    setSavingsDir(b.dataset.dir);
+                };
+            });
 
             function onCarteWhichChange() {
                 const t = document.getElementById("entry-type").value;
@@ -2508,7 +2570,7 @@
                 if (dev === "USD") tot = amt * state.taux.usd_vente;
                 else if (dev === "EUR") tot = amt * state.taux.eur_vente;
                 document.getElementById("carte-preview").textContent = fmt(tot) + " DT";
-                document.getElementById("amount-label").textContent = "Montant (" + dev + ")";
+                document.getElementById("amount-label").textContent = "Amount (" + dev + ")";
             }
 
             function renderCatGrid(sel) {
@@ -2519,11 +2581,12 @@
                     b.type = "button";
                     b.className = "cat-btn" + (c.name === sel ? " active" : "");
                     b.dataset.cat = c.name;
-                    b.innerHTML = `<span class="glyph" style="color:${c.color}">${c.glyph}</span>${c.name}`;
+                    b.innerHTML = `<span class="glyph" style="color:${c.color}">${c.glyph}</span>${c.label}`;
                     b.onclick = () => {
                         vibrate(30);
                         g.querySelectorAll(".cat-btn").forEach((x) => x.classList.remove("active"));
                         b.classList.add("active");
+                        updateSavingsField();
                     };
                     g.appendChild(b);
                 });
@@ -2535,19 +2598,27 @@
                 const date = document.getElementById("entry-date").value;
                 const amt = parseFloat(document.getElementById("entry-amount").value);
                 if (isNaN(amt) || amt <= 0) {
-                    toast("Montant requis", true);
+                    toast("Amount required", true);
                     return;
                 }
                 let kind, entry;
                 if (t === "depense") {
                     kind = "depense";
-                    const cat = document.querySelector("#cat-grid .cat-btn.active")?.dataset.cat || "Autre";
+                    const cat = selectedCategory();
+                    const withdraw = cat === "Epargne" && getSavingsDir() === "out";
+                    if (withdraw) {
+                        const available = savingsBalance(editing?.kind === "depense" ? editing.id : undefined);
+                        if (amt > available + 0.001) {
+                            toast(`Only ${fmt(available)} DT in savings`, true);
+                            return;
+                        }
+                    }
                     entry = {
-                        id: editing?.id || "d" + Date.now(),
+                        id: editing?.id || newId("d"),
                         date: date || null,
                         description: document.getElementById("entry-desc").value.trim(),
                         category: cat,
-                        amount: amt,
+                        amount: withdraw ? -amt : amt,
                     };
                     if (editing) {
                         const idx = state.depenses.findIndex((d) => d.id === editing.id);
@@ -2556,7 +2627,7 @@
                 } else if (t === "revenu") {
                     kind = "revenu";
                     entry = {
-                        id: editing?.id || "r" + Date.now(),
+                        id: editing?.id || newId("r"),
                         date: date || null,
                         source: document.getElementById("entry-source").value.trim() || "—",
                         amount: amt,
@@ -2571,7 +2642,7 @@
                     const dev = which === "d17" ? "DT" : document.getElementById("carte-devise").value;
                     const rate = dev === "USD" ? state.taux.usd_vente : dev === "EUR" ? state.taux.eur_vente : 1;
                     entry = {
-                        id: editing?.id || "c" + Date.now(),
+                        id: editing?.id || newId("c"),
                         date: date || null,
                         description: document.getElementById("entry-desc").value.trim(),
                         type: document.getElementById("carte-op-type").value,
@@ -2589,21 +2660,21 @@
                 }
                 closeModal();
                 render();
-                toast(editing ? "Modifié" : "Enregistré");
+                toast(editing ? "Updated" : "Saved");
                 await pushEntry(kind, entry);
             }
 
             async function deleteEntry() {
                 vibrate(50);
                 if (!editing) return;
-                if (!confirm("Supprimer définitivement ?")) return;
+                if (!confirm("Delete permanently?")) return;
                 const { kind, id } = editing;
                 if (kind === "depense") state.depenses = state.depenses.filter((d) => d.id !== id);
                 else if (kind === "revenu") state.revenus = state.revenus.filter((r) => r.id !== id);
                 else state.carte = state.carte.filter((c) => c.id !== id);
                 closeModal();
                 render();
-                toast("Supprimé");
+                toast("Deleted");
                 await deleteEntryRemote(kind, id);
             }
 
@@ -2611,74 +2682,97 @@
             function renderSettings() {
                 const p = document.getElementById("page-settings");
                 p.innerHTML = `
-                    <div class="section-eyebrow">Taux de change · Zitouna</div>
+                    <div class="section-eyebrow">Exchange rates · Zitouna</div>
                     <div class="setting-row">
                         <div class="info">
                             <div class="info-label">Dollars (USD)</div>
-                            <div class="info-sub">Taux vente actuel</div>
+                            <div class="info-sub">Current selling rate</div>
                         </div>
                         <input type="number" step="0.0001" id="s-usd" value="${state.taux.usd_vente}">
                     </div>
                     <div class="setting-row">
                         <div class="info">
                             <div class="info-label">Euros (EUR)</div>
-                            <div class="info-sub">Taux vente actuel</div>
+                            <div class="info-sub">Current selling rate</div>
                         </div>
                         <input type="number" step="0.0001" id="s-eur" value="${state.taux.eur_vente}">
                     </div>
                     <div class="setting-row">
                         <div class="info">
-                            <div class="info-label">Source officielle</div>
-                            <div class="info-sub">Mets à jour une fois par semaine</div>
+                            <div class="info-label">Official source</div>
+                            <div class="info-sub">Update once a week</div>
                         </div>
-                        <a href="https://www.dinartunisien.com/fr/banque/zitouna" target="_blank" style="color:var(--accent);text-decoration:none;font-size:13px">Ouvrir ↗</a>
+                        <a href="https://www.dinartunisien.com/fr/banque/zitouna" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;font-size:13px">Open ↗</a>
                     </div>
 
-                    <div class="section-eyebrow">Sécurité</div>
-                    <div class="setting-row" style="opacity:0.6;cursor:default;pointer-events:none">
+                    <div class="section-eyebrow">Account</div>
+                    <div class="setting-row" style="cursor:default">
                         <div class="info">
-                            <div class="info-label">Code PIN</div>
-                            <div class="info-sub">Protégé par PBKDF2-SHA256 · 100 000 itérations</div>
+                            <div class="info-label">${escapeHtml(currentUser?.email || "—")}</div>
+                            <div class="info-sub">Only you can see your data</div>
                         </div>
-                        <span style="color:var(--text-4);font-size:12px;letter-spacing:0.05em">🔒</span>
+                        <span style="color:var(--text-4);font-size:12px">🔒</span>
                     </div>
+                    <button class="setting-row" onclick="showAuth('setpassword')">
+                        <div class="info">
+                            <div class="info-label">Change password</div>
+                        </div>
+                        <span class="arrow">›</span>
+                    </button>
+                    <button class="setting-row" onclick="signOut()">
+                        <div class="info">
+                            <div class="info-label">Sign out</div>
+                        </div>
+                        <span class="arrow">›</span>
+                    </button>
+                    <a class="setting-row" href="privacy.html" target="_blank" rel="noopener" style="text-decoration:none;color:inherit">
+                        <div class="info">
+                            <div class="info-label">Privacy policy</div>
+                        </div>
+                        <span class="arrow">↗</span>
+                    </a>
 
-                    <div class="section-eyebrow">Sauvegardes</div>
+                    <div class="section-eyebrow">Your data</div>
+                    <button class="setting-row" onclick="exportExcel()">
+                        <div class="info">
+                            <div class="info-label">Export to Excel</div>
+                            <div class="info-sub">All expenses, income, card operations and balances (.xlsx)</div>
+                        </div>
+                        <span class="arrow" style="color:var(--accent)">↓</span>
+                    </button>
                     <button class="setting-row" onclick="exportData()">
                         <div class="info">
-                            <div class="info-label">Exporter en JSON</div>
-                            <div class="info-sub">Télécharger un fichier de sauvegarde</div>
+                            <div class="info-label">Export as JSON</div>
+                            <div class="info-sub">Raw backup file</div>
                         </div>
                         <span class="arrow" style="color:var(--accent)">↓</span>
                     </button>
                     <button class="setting-row" onclick="forceSync()">
                         <div class="info">
-                            <div class="info-label">Forcer la synchronisation</div>
-                            <div class="info-sub">Recharger depuis Supabase</div>
+                            <div class="info-label">Force sync</div>
+                            <div class="info-sub">Reload from Supabase</div>
                         </div>
                         <span class="arrow" style="color:var(--accent)">↻</span>
                     </button>
 
-                    <div class="section-eyebrow">Réinjection depuis Excel</div>
-                    <button class="setting-row" onclick="reMigrate()" style="border-color:rgba(196, 168, 92, 0.3)">
-                        <div class="info">
-                            <div class="info-label" style="color:var(--accent)">Re-migrer depuis le fichier Excel</div>
-                            <div class="info-sub">Écrase tout et réinjecte les données initiales</div>
-                        </div>
-                        <span class="arrow" style="color:var(--accent)">↻</span>
-                    </button>
-
-                    <div class="section-eyebrow">Zone rouge</div>
+                    <div class="section-eyebrow">Danger zone</div>
                     <button class="setting-row" onclick="resetAll()" style="border-color:rgba(217, 117, 88, 0.3)">
                         <div class="info">
-                            <div class="info-label" style="color:var(--danger)">Tout effacer sur Supabase</div>
-                            <div class="info-sub">Action irréversible</div>
+                            <div class="info-label" style="color:var(--danger)">Erase all my entries</div>
+                            <div class="info-sub">Keeps the account, deletes every expense, income and card operation</div>
+                        </div>
+                        <span class="arrow" style="color:var(--danger)">×</span>
+                    </button>
+                    <button class="setting-row" onclick="deleteAccount()" style="border-color:rgba(217, 117, 88, 0.3)">
+                        <div class="info">
+                            <div class="info-label" style="color:var(--danger)">Delete my account</div>
+                            <div class="info-sub">Deletes the account and all its data. Cannot be undone.</div>
                         </div>
                         <span class="arrow" style="color:var(--danger)">×</span>
                     </button>
 
                     <div style="text-align:center;padding:40px 0 20px;font-size:11px;color:var(--text-4);letter-spacing:0.15em;">
-                        Carnet · v1.0
+                        Carnet · v2.0
                     </div>
                 `;
                 const usdIn = document.getElementById("s-usd");
@@ -2687,14 +2781,72 @@
                     vibrate(35);
                     state.taux.usd_vente = parseFloat(e.target.value);
                     pushTaux();
-                    toast("Taux USD mis à jour");
+                    toast("USD rate updated");
                 };
                 eurIn.onchange = (e) => {
                     vibrate(35);
                     state.taux.eur_vente = parseFloat(e.target.value);
                     pushTaux();
-                    toast("Taux EUR mis à jour");
+                    toast("EUR rate updated");
                 };
+            }
+
+            const byDate = (a, b) => (a.date || "").localeCompare(b.date || "");
+            const round2 = (n) => Math.round(n * 1000) / 1000;
+
+            function exportExcel() {
+                vibrate(35);
+                if (typeof XLSX === "undefined") {
+                    toast("Excel library not loaded yet, try again", true);
+                    return;
+                }
+                const bal = computeBalances();
+                const expenses = [...state.depenses].sort(byDate).map((d) => ({
+                    Date: d.date || "",
+                    Description: d.description || "",
+                    Category: catLabel(d.category),
+                    Movement: d.category === "Epargne" ? (d.amount < 0 ? "Taken out of savings" : "Put into savings") : "",
+                    "Amount (DT)": round2(d.amount),
+                }));
+                const income = [...state.revenus].sort(byDate).map((r) => ({
+                    Date: r.date || "",
+                    Source: r.source || "",
+                    Offset: r.source === "offset" || r.source === "Offset" ? "Yes" : "",
+                    "Amount (DT)": round2(r.amount),
+                }));
+                const cards = [...state.carte].sort(byDate).map((c) => ({
+                    Date: c.date || "",
+                    Card: CARD_NAMES[c.card] || c.card,
+                    Description: c.description || "",
+                    Type: CARD_OP_LABELS[c.type] || c.type,
+                    Currency: c.currency,
+                    "Original amount": c.currency === "USD" ? c.usd : c.currency === "EUR" ? c.eur : round2(c.total_dt),
+                    Rate: c.rate,
+                    "Total (DT)": round2(c.total_dt),
+                }));
+                const summary = [
+                    { Item: "Total balance", "Value (DT)": round2(bal.total) },
+                    { Item: "Cash", "Value (DT)": round2(bal.cash) },
+                    { Item: "D17 card", "Value (DT)": round2(bal.d17) },
+                    { Item: "Techno card", "Value (DT)": round2(bal.techno) },
+                    { Item: "Savings", "Value (DT)": round2(bal.savings) },
+                    { Item: "USD selling rate", "Value (DT)": state.taux.usd_vente },
+                    { Item: "EUR selling rate", "Value (DT)": state.taux.eur_vente },
+                    { Item: "Exported on", "Value (DT)": new Date().toISOString().slice(0, 10) },
+                ];
+
+                const wb = XLSX.utils.book_new();
+                const add = (rows, name, widths) => {
+                    const ws = XLSX.utils.json_to_sheet(rows);
+                    ws["!cols"] = widths.map((w) => ({ wch: w }));
+                    XLSX.utils.book_append_sheet(wb, ws, name);
+                };
+                add(summary, "Summary", [22, 14]);
+                add(expenses, "Expenses", [12, 40, 12, 22, 12]);
+                add(income, "Income", [12, 32, 8, 12]);
+                add(cards, "Cards", [12, 22, 34, 10, 9, 15, 8, 11]);
+                XLSX.writeFile(wb, "carnet-" + new Date().toISOString().slice(0, 10) + ".xlsx");
+                toast("Excel file exported");
             }
 
             function exportData() {
@@ -2706,7 +2858,7 @@
                 a.download = "carnet-" + new Date().toISOString().slice(0, 10) + ".json";
                 a.click();
                 URL.revokeObjectURL(url);
-                toast("Exporté");
+                toast("Exported");
             }
 
             async function forceSync() {
@@ -2715,39 +2867,14 @@
                 await bootstrap();
                 document.getElementById("loading").style.display = "none";
                 render();
-                toast("Synchronisé");
-            }
-
-            async function reMigrate() {
-                if (!confirm("Écraser toutes les données par la version initiale ?")) return;
-                document.getElementById("loading").style.display = "flex";
-                document.getElementById("loading-text").textContent = "Nettoyage…";
-                setSync("syncing", "Reset…");
-                try {
-                    await sb.from("depenses").delete().neq("id", "");
-                    await sb.from("revenus").delete().neq("id", "");
-                    await sb.from("carte").delete().neq("id", "");
-                    await sb.from("taux").delete().neq("id", 0);
-                    document.getElementById("loading-text").textContent = "Réinjection…";
-                    await migrateInitial();
-                    localStorage.setItem(MIGRATED_KEY, "1");
-                    await fetchAll();
-                    document.getElementById("loading").style.display = "none";
-                    setSync("", "À jour");
-                    render();
-                    toast("Migration OK");
-                } catch (e) {
-                    document.getElementById("loading").style.display = "none";
-                    setSync("error", "Erreur");
-                    toast("Erreur", true);
-                }
+                toast("Synced");
             }
 
             async function resetAll() {
                 vibrate(50);
-                if (!confirm("Vraiment tout effacer sur Supabase ?")) return;
-                if (!confirm("Confirmation finale : je supprime tout ?")) return;
-                setSync("syncing", "Effacement…");
+                if (!confirm("Erase all your entries? Your account stays.")) return;
+                if (!confirm("Final confirmation: delete every entry?")) return;
+                setSync("syncing", "Erasing…");
                 try {
                     await sb.from("depenses").delete().neq("id", "");
                     await sb.from("revenus").delete().neq("id", "");
@@ -2755,13 +2882,12 @@
                     state.depenses = [];
                     state.revenus = [];
                     state.carte = [];
-                    localStorage.removeItem(MIGRATED_KEY);
                     render();
-                    setSync("", "À jour");
-                    toast("Tout effacé");
+                    setSync("", "Up to date");
+                    toast("Everything erased");
                 } catch (e) {
-                    setSync("error", "Erreur");
-                    toast("Erreur", true);
+                    setSync("error", "Error");
+                    toast("Error", true);
                 }
             }
 
@@ -2777,7 +2903,7 @@
             }
 
             // ============ INIT ============
-            initLock();
+            initAuth();
             document.getElementById("modal-backdrop").addEventListener("click", (e) => {
                 if (e.target.id === "modal-backdrop") closeModal();
             });
@@ -2798,7 +2924,7 @@
                     if (orig) orig.call(this, e);
                 };
             }
-            console.log("[init] Aperçu réorganisé : Cash, D17, Techno, Épargne.");
+            
         </script>
     </body>
 </html>
