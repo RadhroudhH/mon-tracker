@@ -46,6 +46,10 @@ Between step 3 and step 4 the site works the same as before. Only the PIN is gon
    It also recreates your two cards (Zitouna Technologique and La Poste D17) under the same ids, so your card operations stay attached.
    Until you run it, the site falls back to your two existing cards, but new cards cannot be saved.
 
+9. **Custom categories and goals.** Run `supabase/004_categories_goals.sql`. There is nothing to edit.
+   It creates the `categories` and `goals` tables with strict per-user policies, and recreates your "Six-month goal" (1,200 DT of savings).
+   Until you run it, the Goals section and the "+ New" category button stay hidden.
+
 ## Legal checklist (not legal advice)
 
 **Tunisia, Organic Law 2004-63 (INPDP).** Processing personal data needs a **prior declaration to the INPDP** (Decree 2007-3004). Supabase stores data outside Tunisia, and **transfers abroad need INPDP authorization**. Do this before opening sign-ups to the public.
