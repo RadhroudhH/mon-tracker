@@ -1185,6 +1185,22 @@
             .welcome.leave {
                 animation: fadeOut 0.5s var(--ease) forwards;
             }
+            /* Tapped the background: jump to the end (the fade is done in JS from where things were) */
+            .welcome.skip .welcome-word,
+            .welcome.skip .welcome-name,
+            .welcome.skip .welcome-go {
+                animation: none !important;
+            }
+            .welcome.skip .welcome-word {
+                opacity: 0;
+            }
+            .welcome.skip .welcome-name {
+                opacity: 1;
+            }
+            .welcome.skip .welcome-go {
+                opacity: 1;
+                pointer-events: auto;
+            }
             .welcome-go {
                 position: absolute;
                 top: calc(50% + clamp(46px, 11vw, 66px));
@@ -2144,7 +2160,7 @@
         </div>
 
         <!-- Welcome animation -->
-        <div class="welcome" id="welcome">
+        <div class="welcome" id="welcome" onclick="skipWelcome(event)">
             <div class="welcome-word">Welcome</div>
             <div class="welcome-name" id="welcome-name"></div>
             <button class="welcome-go" id="welcome-go" onclick="goToCarnet(event)">Go to Carnet</button>
@@ -2562,10 +2578,26 @@
                 const el = document.getElementById("welcome");
                 document.getElementById("welcome-name").textContent = getUsername();
                 el.style.cssText = "";
-                el.classList.remove("play", "leave");
+                el.classList.remove("play", "leave", "skip");
                 void el.offsetWidth; // restart the animation
                 el.classList.add("show", "play");
                 welcomeBusy = false;
+            }
+
+            // Tap on the background: skip ahead to the name and the button, fading smoothly from wherever they were
+            function skipWelcome(e) {
+                const el = document.getElementById("welcome");
+                if (e.target.closest(".welcome-go") || welcomeBusy || el.classList.contains("skip") || !el.classList.contains("play")) return;
+                const parts = [".welcome-word", ".welcome-name", ".welcome-go"].map((s) => el.querySelector(s));
+                const from = parts.map((p) => {
+                    const cs = getComputedStyle(p);
+                    return { opacity: cs.opacity, transform: cs.transform };
+                });
+                el.classList.add("skip");
+                parts.forEach((p, i) => {
+                    const cs = getComputedStyle(p);
+                    p.animate([from[i], { opacity: cs.opacity, transform: cs.transform }], { duration: 400, easing: "cubic-bezier(.22,1,.36,1)" });
+                });
             }
 
             function endWelcome() {
@@ -2576,7 +2608,7 @@
 
             function closeWelcome() {
                 const el = document.getElementById("welcome");
-                el.classList.remove("show", "play", "leave");
+                el.classList.remove("show", "play", "leave", "skip");
                 el.style.cssText = "";
                 // drop what the transitions left on the welcome screen (but not its own CSS animations)
                 el.getAnimations({ subtree: true }).forEach((a) => typeof CSSAnimation !== "undefined" && a instanceof CSSAnimation ? null : a.cancel());
