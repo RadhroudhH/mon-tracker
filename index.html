@@ -1152,9 +1152,8 @@
                 display: none;
                 align-items: center;
                 justify-content: center;
-                background: color-mix(in srgb, var(--bg) 70%, transparent);
-                backdrop-filter: blur(7px);
-                -webkit-backdrop-filter: blur(7px);
+                /* no backdrop blur: on phones it is recomputed every frame and makes the transitions stutter */
+                background: color-mix(in srgb, var(--bg) 82%, transparent);
                 cursor: pointer;
             }
             .welcome.show {
@@ -1236,6 +1235,11 @@
                 pointer-events: none;
                 overflow: hidden;
                 perspective: 1300px;
+            }
+            /* while the dashboard flies in, the sticky header's blur would be recomputed every frame */
+            #app.entering .header {
+                backdrop-filter: none;
+                -webkit-backdrop-filter: none;
             }
             .topbar .header-actions {
                 flex-shrink: 0;
@@ -2651,9 +2655,16 @@
             const fxColors = () => [cssVar("--accent"), cssVar("--accent-2"), ...PALETTE];
 
             // The dashboard arrives: the app settles into place, then each section pops in one after the other
+            // Phones get lighter effects (fewer particles, 1x canvas): smoothness beats detail there
+            const LITE = matchMedia("(pointer: coarse)").matches || innerWidth < 700;
+
+            // Only transform and opacity move here (GPU work). Animating blur on the whole page made phones stutter.
             function enterApp(delay, from) {
                 const app = document.getElementById("app");
-                app.animate([from || { transform: "scale(1.12)", filter: "blur(12px)", opacity: 0.15 }, { transform: "none", filter: "blur(0)", opacity: 1 }], { duration: 900, delay, easing: "cubic-bezier(.22,1,.36,1)", fill: "backwards" });
+                app.classList.add("entering");
+                const anim = app.animate([from || { transform: "scale(1.08)", opacity: 0.15 }, { transform: "none", opacity: 1 }], { duration: 900, delay, easing: "cubic-bezier(.22,1,.36,1)", fill: "backwards" });
+                const clear = () => app.classList.remove("entering");
+                anim.finished.then(clear, clear);
                 const page = document.getElementById("page-" + currentPage);
                 const kids = [...(page?.children || [])].slice(0, 8);
                 if (window.Motion) {
@@ -2689,7 +2700,7 @@
 
             function fxCanvas(layer) {
                 const cv = document.createElement("canvas");
-                const dpr = Math.min(2, devicePixelRatio || 1);
+                const dpr = LITE ? 1 : Math.min(2, devicePixelRatio || 1);
                 cv.width = innerWidth * dpr;
                 cv.height = innerHeight * dpr;
                 cv.style.cssText = "position:absolute;inset:0;width:100%;height:100%";
@@ -2713,7 +2724,7 @@
                 // Hyperspace: stars stretch into light streaks, a flash, and the dashboard rushes in
                 warp(layer, o, done) {
                     const w = document.getElementById("welcome");
-                    fadeWelcomeText(w, { opacity: 0, transform: "scale(1.6)", filter: "blur(6px)" }, 450);
+                    fadeWelcomeText(w, { opacity: 0, transform: "scale(1.6)" }, 450);
                     const ctx = fxCanvas(layer);
                     const W = innerWidth,
                         H = innerHeight,
@@ -2721,7 +2732,7 @@
                         cy = H / 2,
                         bg = cssVar("--bg"),
                         cols = [cssVar("--accent"), cssVar("--accent-2"), "#ffffff"];
-                    const stars = Array.from({ length: 320 }, () => ({ a: rand(0, Math.PI * 2), d: rand(4, Math.max(W, H) * 0.5), c: cols[Math.floor(Math.random() * 3)], w: rand(0.6, 2.2) }));
+                    const stars = Array.from({ length: LITE ? 150 : 320 }, () => ({ a: rand(0, Math.PI * 2), d: rand(4, Math.max(W, H) * 0.5), c: cols[Math.floor(Math.random() * 3)], w: rand(0.6, 2.2) }));
                     let last = 0;
                     frames(1300, (t, el) => {
                         const dt = el - last;
@@ -2749,39 +2760,45 @@
                     flash.animate([{ opacity: 0 }, { opacity: 0, offset: 0.72 }, { opacity: 1, offset: 0.82 }, { opacity: 0 }], { duration: 1700, fill: "forwards" });
                     layer.animate([{ opacity: 1 }, { opacity: 1, offset: 0.75 }, { opacity: 0 }], { duration: 1700, fill: "forwards" });
                     setTimeout(() => (w.style.opacity = 0), 1250);
-                    enterApp(1250, { transform: "scale(1.6)", filter: "blur(16px)", opacity: 0 });
+                    enterApp(1250, { transform: "scale(1.5)", opacity: 0 });
                     done(1750);
                 },
 
                 // Shatter: the welcome screen cracks into glass shards that explode away from the button
                 shatter(layer, o, done) {
                     const w = document.getElementById("welcome");
-                    const cols = 6,
-                        rows = 9,
-                        cw = 100 / cols,
-                        rh = 100 / rows;
-                    const base = welcomeClone(layer);
-                    base.remove();
+                    // Each shard is a small element of its own size (not a full-screen copy), so phones only move small tiles
+                    const W = innerWidth,
+                        H = innerHeight,
+                        cols = LITE ? 4 : 6,
+                        rows = LITE ? 7 : 9,
+                        cw = W / cols,
+                        rh = H / rows;
+                    const name = w.querySelector(".welcome-name");
+                    const nr = name.getBoundingClientRect();
+                    const ncs = getComputedStyle(name);
+                    const bg = cssVar("--bg"),
+                        ac = cssVar("--accent");
                     for (let i = 0; i < cols; i++)
                         for (let j = 0; j < rows; j++)
                             for (let k = 0; k < 2; k++) {
-                                const x0 = i * cw,
-                                    y0 = j * rh,
-                                    x1 = x0 + cw,
-                                    y1 = y0 + rh;
-                                const poly = k ? `${x0}% ${y0}%, ${x1}% ${y0}%, ${x1}% ${y1}%` : `${x0}% ${y0}%, ${x0}% ${y1}%, ${x1}% ${y1}%`;
-                                const s = base.cloneNode(true);
-                                s.style.clipPath = `polygon(${poly})`;
-                                s.style.backdropFilter = s.style.webkitBackdropFilter = "none";
+                                const x = i * cw,
+                                    y = j * rh;
+                                const s = document.createElement("div");
                                 // each shard catches the light a little differently, so the glass reads as pieces
-                                s.style.background = `linear-gradient(${rand(0, 360)}deg, color-mix(in srgb, ${cssVar("--accent")} ${rand(6, 26)}%, ${cssVar("--bg")}), ${cssVar("--bg")} 70%)`;
+                                s.style.cssText = `position:absolute;left:${x}px;top:${y}px;width:${cw + 1}px;height:${rh + 1}px;overflow:hidden;clip-path:polygon(${k ? "0 0,100% 0,100% 100%" : "0 0,0 100%,100% 100%"});background:linear-gradient(${rand(0, 360)}deg, color-mix(in srgb, ${ac} ${rand(6, 26)}%, ${bg}), ${bg} 70%)`;
+                                // the piece of the name that was under this shard breaks away with it
+                                if (x < nr.right && x + cw > nr.left && y < nr.bottom && y + rh > nr.top) {
+                                    const t = document.createElement("div");
+                                    t.textContent = name.textContent;
+                                    t.style.cssText = `position:absolute;left:${nr.left - x}px;top:${nr.top - y}px;width:${nr.width}px;height:${nr.height}px;font:${ncs.font};font-style:${ncs.fontStyle};letter-spacing:${ncs.letterSpacing};color:${ncs.color};text-align:center;white-space:nowrap`;
+                                    s.appendChild(t);
+                                }
                                 layer.appendChild(s);
-                                const px = ((x0 + cw / 2) / 100) * innerWidth,
-                                    py = ((y0 + rh / 2) / 100) * innerHeight;
-                                const dx = px - o.x,
-                                    dy = py - o.y,
+                                const dx = x + cw / 2 - o.x,
+                                    dy = y + rh / 2 - o.y,
                                     dist = Math.hypot(dx, dy) || 1;
-                                const push = rand(500, 1100);
+                                const push = rand(LITE ? 350 : 500, LITE ? 750 : 1100);
                                 s.animate(
                                     [
                                         { transform: "none", opacity: 1 },
@@ -2805,11 +2822,24 @@
                     const w = document.getElementById("welcome");
                     fadeWelcomeText(w, { opacity: 0, transform: "scale(.8)" }, 300);
                     const max = Math.hypot(Math.max(o.x, innerWidth - o.x), Math.max(o.y, innerHeight - o.y)) + 60;
+                    // The veil moves to a canvas under the words, and the hole is cut there: one fill and one circle
+                    // per frame, instead of re-masking the whole screen every frame
+                    layer.style.zIndex = 299;
+                    w.style.background = "transparent";
+                    const ctx = fxCanvas(layer);
+                    const bg = cssVar("--bg");
                     frames(1100, (t) => {
                         const e = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-                        const R = e * max;
-                        const m = `radial-gradient(circle at ${o.x}px ${o.y}px, transparent ${R}px, #000 ${R + 2}px)`;
-                        w.style.webkitMaskImage = w.style.maskImage = m;
+                        ctx.globalCompositeOperation = "source-over";
+                        ctx.clearRect(0, 0, innerWidth, innerHeight);
+                        ctx.globalAlpha = 0.82;
+                        ctx.fillStyle = bg;
+                        ctx.fillRect(0, 0, innerWidth, innerHeight);
+                        ctx.globalAlpha = 1;
+                        ctx.globalCompositeOperation = "destination-out";
+                        ctx.beginPath();
+                        ctx.arc(o.x, o.y, e * max, 0, Math.PI * 2);
+                        ctx.fill();
                     });
                     [0, 140, 280].forEach((d, i) => {
                         const ring = document.createElement("div");
@@ -2818,7 +2848,7 @@
                         ring.animate([{ transform: "scale(0)", opacity: 1 }, { transform: `scale(${(max * 2.2) / 100})`, opacity: 0 }], { duration: 1200, delay: d, easing: "cubic-bezier(.2,.7,.3,1)", fill: "both" });
                     });
                     const cols = fxColors();
-                    for (let i = 0; i < 46; i++) {
+                    for (let i = 0; i < (LITE ? 24 : 46); i++) {
                         const p = document.createElement("div");
                         const sz = rand(3, 8),
                             a = rand(0, Math.PI * 2),
@@ -2827,7 +2857,7 @@
                         layer.appendChild(p);
                         p.animate([{ transform: "translate(-50%,-50%)", opacity: 1 }, { transform: `translate(${Math.cos(a) * d}px, ${Math.sin(a) * d}px) scale(.2)`, opacity: 0 }], { duration: rand(700, 1300), easing: "cubic-bezier(.1,.8,.3,1)", fill: "both" });
                     }
-                    enterApp(150, { transform: "scale(.9)", filter: "blur(8px)", opacity: 0.4 });
+                    enterApp(150, { transform: "scale(.92)", opacity: 0.4 });
                     done(1450);
                 },
 
@@ -2855,17 +2885,17 @@
                     const opts = { duration: 1300, delay: 380, easing: "cubic-bezier(.7,0,.25,1)", fill: "both" };
                     L.animate([{ transform: "none" }, { transform: "rotateY(-8deg)", offset: 0.15 }, { transform: "translateZ(80px) rotateY(105deg)", opacity: 0.2 }], opts);
                     R.animate([{ transform: "none" }, { transform: "rotateY(8deg)", offset: 0.15 }, { transform: "translateZ(80px) rotateY(-105deg)", opacity: 0.2 }], opts);
-                    enterApp(450, { transform: "scale(.82) translateZ(0)", filter: "blur(10px)", opacity: 0 });
+                    enterApp(450, { transform: "scale(.85)", opacity: 0 });
                     done(1750);
                 },
 
                 // Confetti cannon: a burst of colors from the button while the welcome screen flies up
                 confetti(layer, o, done) {
                     const w = document.getElementById("welcome");
-                    w.animate([{ transform: "none" }, { transform: "translateY(4%) scale(.98)", offset: 0.2 }, { transform: "translateY(-105%)", filter: "blur(4px)" }], { duration: 900, delay: 120, easing: "cubic-bezier(.6,0,.3,1)", fill: "forwards" });
+                    w.animate([{ transform: "none" }, { transform: "translateY(4%) scale(.98)", offset: 0.2 }, { transform: "translateY(-105%)" }], { duration: 900, delay: 120, easing: "cubic-bezier(.6,0,.3,1)", fill: "forwards" });
                     const ctx = fxCanvas(layer);
                     const cols = fxColors();
-                    const bits = Array.from({ length: 220 }, () => {
+                    const bits = Array.from({ length: LITE ? 120 : 220 }, () => {
                         const a = rand(-Math.PI, 0),
                             v = rand(6, 19);
                         return { x: o.x, y: o.y, vx: Math.cos(a) * v * rand(0.4, 1.3), vy: Math.sin(a) * v, r: rand(0, 6), vr: rand(-0.3, 0.3), w: rand(5, 11), h: rand(3, 7), c: cols[Math.floor(Math.random() * cols.length)], round: Math.random() < 0.3 };
@@ -2892,7 +2922,7 @@
                             ctx.restore();
                         });
                     });
-                    enterApp(350, { transform: "translateY(60px) scale(.94)", filter: "blur(6px)", opacity: 0 });
+                    enterApp(350, { transform: "translateY(60px) scale(.94)", opacity: 0 });
                     done(2350);
                 },
 
@@ -2903,7 +2933,7 @@
                     band.style.cssText = "position:absolute;left:-50%;top:-50%;width:200%;height:200%;display:flex;flex-direction:column;transform:rotate(-14deg)";
                     layer.appendChild(band);
                     const cols = [cssVar("--accent"), PALETTE[4], cssVar("--accent-2"), PALETTE[7], PALETTE[3], cssVar("--accent-dim"), PALETTE[9], PALETTE[5]];
-                    const n = 14;
+                    const n = LITE ? 10 : 14;
                     for (let i = 0; i < n; i++) {
                         const b = document.createElement("div");
                         b.style.cssText = `flex:1;margin:-1px 0;background:${cols[i % cols.length]}`;
@@ -2920,7 +2950,7 @@
                         );
                     }
                     setTimeout(() => (w.style.opacity = 0), 750);
-                    enterApp(820, { transform: "scale(1.06) rotate(-1.5deg)", filter: "blur(6px)", opacity: 0.2 });
+                    enterApp(820, { transform: "scale(1.06) rotate(-1.5deg)", opacity: 0.2 });
                     done(2000);
                 },
             };
