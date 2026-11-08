@@ -54,6 +54,10 @@ Between step 3 and step 4 the site works the same as before. Only the PIN is gon
     It adds a `color` column to cards and a `prefs` table (one row per user, strict policy) that stores the dashboard order, hidden sections, theme and category colors.
     Until you run it, the Appearance settings and card colors stay hidden, and dashboard changes are kept only on that device.
 
+11. **Categories on card purchases.** Run `supabase/006_card_categories.sql`. There is nothing to edit.
+    It adds a `category` column to `carte`. Existing card purchases count as "Other" until you edit them.
+    Until you run it, card purchases have no category picker, but the Overall / Cash / Cards graphs still work.
+
 ## Legal checklist (not legal advice)
 
 **Tunisia, Organic Law 2004-63 (INPDP).** Processing personal data needs a **prior declaration to the INPDP** (Decree 2007-3004). Supabase stores data outside Tunisia, and **transfers abroad need INPDP authorization**. Do this before opening sign-ups to the public.

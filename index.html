@@ -1351,6 +1351,20 @@
                 flex: 1;
             }
 
+            .seg-toggle.three {
+                grid-template-columns: repeat(3, 1fr);
+            }
+            .breakdown-views {
+                margin-bottom: 14px;
+                background: var(--bg-2);
+            }
+            .breakdown-views button {
+                padding: 9px;
+                font-size: 12px;
+            }
+            .breakdown-cards {
+                margin: -4px 0 10px;
+            }
             .settings-tabs {
                 display: flex;
                 gap: 8px;
@@ -1912,7 +1926,7 @@
 
                 <div class="field" id="field-carte-type" style="display: none">
                     <label>Operation type</label>
-                    <select id="carte-op-type">
+                    <select id="carte-op-type" onchange="onEntryTypeChange()">
                         <option value="Achat">Purchase</option>
                         <option value="Rechargement">Top-up</option>
                         <option value="Remboursement">Refund</option>
@@ -2438,7 +2452,7 @@
                 // this second check means a misconfigured policy can never show someone else's rows.
                 const uid = currentUser?.id;
                 if (!uid) throw new Error("not signed in");
-                const [depR, revR, ctR, txR, cardsR, catR, goalR, prefR] = await Promise.all([
+                const [depR, revR, ctR, txR, cardsR, catR, goalR, prefR, ccR] = await Promise.all([
                     sb.from("depenses").select("*").eq("user_id", uid),
                     sb.from("revenus").select("*").eq("user_id", uid),
                     sb.from("carte").select("*").eq("user_id", uid),
@@ -2447,7 +2461,9 @@
                     sb.from("categories").select("*").eq("user_id", uid).order("created_at"),
                     sb.from("goals").select("*").eq("user_id", uid).order("created_at"),
                     sb.from("prefs").select("data").eq("user_id", uid),
+                    sb.from("carte").select("category").eq("user_id", uid).limit(1), // probe for the 006 column
                 ]);
+                cardCatReady = !ccR.error;
                 // prefs table (dashboard layout, theme) comes from supabase/005_card_colors_prefs.sql
                 prefsReady = !prefR.error;
                 if (prefR.error) console.warn("prefs table unavailable:", prefR.error.message);
@@ -2578,6 +2594,7 @@
                 return [...CATEGORIES.map((c) => ({ ...c, color: prefs.catColors[c.name] || c.color })), ...state.categories.map((c) => ({ name: c.id, label: c.name, glyph: c.glyph, color: c.color, custom: true }))];
             }
             let featuresReady = true; // false until supabase/004_categories_goals.sql has been run
+            let cardCatReady = false; // true once supabase/006_card_categories.sql has added carte.category
             const isWithdrawal = (d) => d.category === "Epargne" && d.amount < 0;
 
             function dayLabel(iso) {
@@ -3036,9 +3053,9 @@
                         try {
                             localStorage.setItem(PERIOD_KEY, breakdownPeriod);
                         } catch (_) {}
-                        renderBreakdown(spending);
+                        renderBreakdown();
                     };
-                    renderBreakdown(spending);
+                    renderBreakdown();
                 }
 
                 // Insights: neutral, about the user's own numbers only
@@ -3063,19 +3080,71 @@
                 });
             }
 
-            // Donut chart + list of spending per category for the selected period
-            function renderBreakdown(spending) {
+            // ----- Spending breakdown: three graphs (Overall, Cash, Cards) -----
+            const BREAKDOWN_VIEWS = [
+                { id: "overall", label: "Overall" },
+                { id: "cash", label: "Cash" },
+                { id: "cards", label: "Cards" },
+            ];
+            let breakdownView = "overall";
+            let breakdownCard = "all"; // "all" or a card id (Cards view)
+            try {
+                const v = localStorage.getItem("carnet-breakdown-view");
+                if (BREAKDOWN_VIEWS.some((x) => x.id === v)) breakdownView = v;
+            } catch (_) {}
+
+            // Spending items as { category, amount, date }. Offsets and savings moves are not spending.
+            function cashSpending() {
+                return state.depenses.filter((d) => d.category !== "Offset" && d.category !== "Epargne").map((d) => ({ category: d.category, amount: d.amount, date: d.date }));
+            }
+            function cardSpending(cardId) {
+                return state.carte
+                    .filter((c) => c.type === "Achat" && (cardId === "all" || c.card === cardId))
+                    .map((c) => ({ category: c.category || "Autre", amount: c.total_dt, date: c.date }))
+                    .filter((x) => x.category !== "Offset" && x.category !== "Epargne");
+            }
+
+            function setBreakdownView(view) {
+                vibrate(25);
+                breakdownView = view;
+                try {
+                    localStorage.setItem("carnet-breakdown-view", view);
+                } catch (_) {}
+                renderBreakdown();
+            }
+
+            function setBreakdownCard(id) {
+                vibrate(25);
+                breakdownCard = id;
+                renderBreakdown();
+            }
+
+            // Donut chart + list of spending per category for the selected view and period
+            function renderBreakdown() {
                 const el = document.getElementById("breakdown");
                 if (!el) return;
+                if (breakdownCard !== "all" && !findCard(breakdownCard)) breakdownCard = "all";
+
+                const items = breakdownView === "cash" ? cashSpending() : breakdownView === "cards" ? cardSpending(breakdownCard) : [...cashSpending(), ...cardSpending("all")];
                 const totals = {};
-                spending.filter((d) => inPeriod(d.date, breakdownPeriod)).forEach((d) => (totals[d.category] = (totals[d.category] || 0) + d.amount));
+                items.filter((d) => inPeriod(d.date, breakdownPeriod)).forEach((d) => (totals[d.category] = (totals[d.category] || 0) + d.amount));
                 const entries = Object.entries(totals)
                     .filter(([, amt]) => amt > 0)
                     .sort((a, b) => b[1] - a[1]);
                 const total = entries.reduce((s, e) => s + e[1], 0);
 
+                const views = `<div class="seg-toggle three breakdown-views">${BREAKDOWN_VIEWS.map((v) => `<button type="button" class="${v.id === breakdownView ? "active" : ""}" onclick="setBreakdownView('${v.id}')">${v.label}</button>`).join("")}</div>`;
+                const cardChips =
+                    breakdownView === "cards" && state.cards.length > 1
+                        ? `<div class="filter-scroll breakdown-cards">${[{ id: "all", name: "All cards" }, ...state.cards]
+                              .map((c) => `<button class="filter-chip ${c.id === breakdownCard ? "active" : ""}" onclick="setBreakdownCard('${escapeHtml(c.id)}')">${escapeHtml(c.name)}</button>`)
+                              .join("")}</div>`
+                        : "";
+                const caption = breakdownView === "cash" ? "DT in cash" : breakdownView === "cards" ? (breakdownCard === "all" ? "DT on cards" : "DT on " + escapeHtml(cardName(breakdownCard))) : "DT spent";
+
                 if (!entries.length) {
-                    el.innerHTML = '<div style="color:var(--text-4);padding:24px 0;text-align:center;font-size:12px;">No spending in this period</div>';
+                    const why = breakdownView === "cards" && !state.carte.some((c) => c.type === "Achat") ? "No card purchases yet" : "No spending in this period";
+                    el.innerHTML = views + cardChips + `<div style="color:var(--text-4);padding:28px 0 20px;text-align:center;font-size:12px;">${why}</div>`;
                     return;
                 }
 
@@ -3094,6 +3163,8 @@
                     .join("");
 
                 el.innerHTML = `
+                    ${views}
+                    ${cardChips}
                     <div class="donut-wrap">
                         <svg viewBox="0 0 180 180" role="img" aria-label="Spending by category">
                             <circle cx="90" cy="90" r="${r}" fill="none" stroke="var(--bg-2)" stroke-width="18" />
@@ -3101,7 +3172,7 @@
                         </svg>
                         <div class="donut-center">
                             <div class="total">${fmt(total)}</div>
-                            <div class="caption">DT spent</div>
+                            <div class="caption">${caption}</div>
                         </div>
                     </div>
                     <div class="repart-list">
@@ -3459,14 +3530,15 @@
                             if (isOffset) offsetBadge = `<span class="offset-badge">Offset</span>`;
                         } else {
                             const isAchat = it.type === "Achat";
-                            iconGlyph = isAchat ? "−" : "+";
-                            iconColor = isAchat ? "#9B87BE" : "#6DB89B";
+                            const cat = isAchat && it.category ? catInfo(it.category) : null;
+                            iconGlyph = cat ? cat.glyph : isAchat ? "−" : "+";
+                            iconColor = cat ? cat.color : isAchat ? "#9B87BE" : "#6DB89B";
                             iconBg = iconColor + "20";
                             desc = it.description || "—";
                             let extra = "";
                             if (it.currency === "USD" && it.usd) extra = ` · ${it.usd} $`;
                             else if (it.currency === "EUR" && it.eur) extra = ` · ${fmt(it.eur)} €`;
-                            meta = `${CARD_OP_LABELS[it.type] || it.type}${extra}`;
+                            meta = `${CARD_OP_LABELS[it.type] || it.type}${cat ? " · " + cat.label : ""}${extra}`;
                             amt = fmt(it.total_dt);
                             cls = isAchat ? "neg" : "pos";
                         }
@@ -3549,6 +3621,7 @@
                     else if (entry.currency === "EUR") a = entry.eur;
                     else a = entry.total_dt;
                     document.getElementById("entry-amount").value = a;
+                    renderCatGrid(entry.category || "Autre");
                 }
                 onEntryTypeChange();
                 document.getElementById("modal-backdrop").classList.add("open");
@@ -3563,7 +3636,16 @@
                 const t = document.getElementById("entry-type").value;
                 document.getElementById("field-desc").style.display = t === "revenu" ? "none" : "block";
                 document.getElementById("field-source").style.display = t === "revenu" ? "block" : "none";
-                document.getElementById("field-category").style.display = t === "depense" ? "block" : "none";
+                // card purchases get a category too (Savings is cash-only, so it's hidden for cards)
+                const cardPurchase = t === "carte" && cardCatReady && document.getElementById("carte-op-type").value === "Achat";
+                const grid = document.getElementById("cat-grid");
+                const wasCardGrid = grid.dataset.mode === "card";
+                if (cardPurchase !== wasCardGrid) {
+                    const sel = selectedCategory();
+                    grid.dataset.mode = cardPurchase ? "card" : "cash";
+                    renderCatGrid(cardPurchase && sel === "Epargne" ? "Autre" : sel);
+                }
+                document.getElementById("field-category").style.display = t === "depense" || cardPurchase ? "block" : "none";
                 document.getElementById("field-carte-which").style.display = t === "carte" ? "block" : "none";
                 document.getElementById("field-carte-type").style.display = t === "carte" ? "block" : "none";
                 document.getElementById("field-carte-preview").style.display = t === "carte" ? "block" : "none";
@@ -3642,7 +3724,9 @@
             function renderCatGrid(sel) {
                 const g = document.getElementById("cat-grid");
                 g.innerHTML = "";
-                const cats = allCategories();
+                const cardMode = document.getElementById("entry-type").value === "carte" && cardCatReady && document.getElementById("carte-op-type").value === "Achat";
+                g.dataset.mode = cardMode ? "card" : "cash";
+                const cats = allCategories().filter((c) => !(cardMode && c.name === "Epargne"));
                 // an expense whose custom category was deleted still shows its value
                 if (sel && !cats.some((c) => c.name === sel)) cats.push(catInfo(sel));
                 cats.forEach((c) => {
@@ -3734,6 +3818,8 @@
                         total_dt: amt * rate,
                         card: which,
                     };
+                    // category column exists once supabase/006_card_categories.sql has been run
+                    if (cardCatReady) entry.category = entry.type === "Achat" ? selectedCategory() : null;
                     if (editing) {
                         const idx = state.carte.findIndex((c) => c.id === editing.id);
                         if (idx >= 0) state.carte[idx] = entry;
@@ -3832,8 +3918,10 @@
                 vibrate(50);
                 const cat = state.categories.find((c) => c.id === editingCategory);
                 if (!cat) return;
-                const used = state.depenses.filter((d) => d.category === cat.id);
-                const msg = used.length ? `Delete "${cat.name}"? Its ${used.length} expense${used.length === 1 ? "" : "s"} will move to "Other".` : `Delete "${cat.name}"?`;
+                const usedCash = state.depenses.filter((d) => d.category === cat.id);
+                const usedCard = state.carte.filter((c) => c.category === cat.id);
+                const used = [...usedCash, ...usedCard];
+                const msg = used.length ? `Delete "${cat.name}"? Its ${used.length} entr${used.length === 1 ? "y" : "ies"} will move to "Other".` : `Delete "${cat.name}"?`;
                 if (!confirm(msg)) return;
                 used.forEach((d) => (d.category = "Autre"));
                 state.categories = state.categories.filter((c) => c.id !== cat.id);
@@ -3844,7 +3932,8 @@
 
                 setSync("syncing", "Sync…");
                 const uid = currentUser.id;
-                const r1 = used.length ? await sb.from("depenses").update({ category: "Autre" }).eq("category", cat.id).eq("user_id", uid) : { error: null };
+                const r0 = usedCash.length ? await sb.from("depenses").update({ category: "Autre" }).eq("category", cat.id).eq("user_id", uid) : { error: null };
+                const r1 = r0.error ? r0 : usedCard.length ? await sb.from("carte").update({ category: "Autre" }).eq("category", cat.id).eq("user_id", uid) : { error: null };
                 const r2 = r1.error ? r1 : await sb.from("categories").delete().eq("id", cat.id).eq("user_id", uid);
                 if (r2.error) {
                     setSync("error", "Error");
@@ -4007,7 +4096,7 @@
                             <span class="cat-icon" style="background:${c.color}20;color:${c.color}">${escapeHtml(c.glyph)}</span>
                             <div>
                                 <div class="info-label">${escapeHtml(c.name)}</div>
-                                <div class="info-sub">${state.depenses.filter((d) => d.category === c.id).length} expenses</div>
+                                <div class="info-sub">${state.depenses.filter((d) => d.category === c.id).length + state.carte.filter((x) => x.category === c.id).length} entries</div>
                             </div>
                         </div>
                         <span class="arrow">›</span>
@@ -4189,6 +4278,7 @@
                     "Original amount": c.currency === "USD" ? c.usd : c.currency === "EUR" ? c.eur : round2(c.total_dt),
                     Rate: c.rate,
                     "Total (DT)": round2(c.total_dt),
+                    Category: c.type === "Achat" ? catLabel(c.category || "Autre") : "",
                 }));
                 const summary = [
                     { Item: "Total balance", "Value (DT)": round2(bal.total) },
