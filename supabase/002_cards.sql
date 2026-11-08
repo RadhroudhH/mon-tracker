@@ -31,15 +31,16 @@ begin
     using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
   revoke all on public.cards from anon;
 
-  -- Recreate the existing owner's two cards (only for users who already have operations on them)
+  -- Recreate the original owner's two cards (owner = author of the very first entry, "d0"),
+  -- with the same ids the existing card operations already use
   insert into public.cards (id, user_id, name, style, fx, fx_limit, created_at)
-  select distinct on (c.user_id) 'techno', c.user_id, 'Zitouna Technologique', 'techno', true, 1000, now()
-  from public.carte c where c.card = 'techno'
+  select 'techno', d.user_id, 'Zitouna Technologique', 'techno', true, 1000, now()
+  from public.depenses d where d.id = 'd0'
   on conflict (id) do nothing;
 
   insert into public.cards (id, user_id, name, style, fx, fx_limit, created_at)
-  select distinct on (c.user_id) 'd17', c.user_id, 'La Poste D17', 'd17', false, null, now() + interval '1 second'
-  from public.carte c where c.card = 'd17'
+  select 'd17', d.user_id, 'La Poste D17', 'd17', false, null, now() + interval '1 second'
+  from public.depenses d where d.id = 'd0'
   on conflict (id) do nothing;
 end
 $migration$;
