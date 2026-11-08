@@ -2662,8 +2662,13 @@
             function enterApp(delay, from) {
                 const app = document.getElementById("app");
                 app.classList.add("entering");
+                // zoom around the middle of the screen, not the middle of the (tall) page
+                app.style.transformOrigin = `50% ${scrollY + innerHeight / 2}px`;
                 const anim = app.animate([from || { transform: "scale(1.08)", opacity: 0.15 }, { transform: "none", opacity: 1 }], { duration: 900, delay, easing: "cubic-bezier(.22,1,.36,1)", fill: "backwards" });
-                const clear = () => app.classList.remove("entering");
+                const clear = () => {
+                    app.classList.remove("entering");
+                    app.style.transformOrigin = "";
+                };
                 anim.finished.then(clear, clear);
                 const page = document.getElementById("page-" + currentPage);
                 const kids = [...(page?.children || [])].slice(0, 8);
@@ -2827,10 +2832,19 @@
                     layer.style.zIndex = 299;
                     w.style.background = "transparent";
                     const ctx = fxCanvas(layer);
-                    const bg = cssVar("--bg");
-                    frames(1100, (t) => {
-                        const e = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+                    const bg = cssVar("--bg"),
+                        ac = cssVar("--accent"),
+                        ac2 = cssVar("--accent-2");
+                    const cols = fxColors();
+                    const outQuint = (x) => 1 - Math.pow(1 - x, 4);
+                    // Rings and sparks are drawn on the same canvas (no glowing DOM elements scaled 20x)
+                    const rings = [0, 140, 280].map((d, i) => ({ d, w: 3 - i, c: i === 1 ? ac2 : ac }));
+                    const sparks = Array.from({ length: LITE ? 28 : 46 }, (_, i) => ({ a: rand(0, Math.PI * 2), d: rand(120, 480), dur: rand(700, 1300), sz: rand(1.5, 4), c: cols[i % cols.length] }));
+                    frames(1350, (t, ms) => {
+                        const e = Math.min(1, ms / 1100);
+                        const hole = (e < 0.5 ? 4 * e * e * e : 1 - Math.pow(-2 * e + 2, 3) / 2) * max;
                         ctx.globalCompositeOperation = "source-over";
+                        ctx.globalAlpha = 1;
                         ctx.clearRect(0, 0, innerWidth, innerHeight);
                         ctx.globalAlpha = 0.82;
                         ctx.fillStyle = bg;
@@ -2838,25 +2852,34 @@
                         ctx.globalAlpha = 1;
                         ctx.globalCompositeOperation = "destination-out";
                         ctx.beginPath();
-                        ctx.arc(o.x, o.y, e * max, 0, Math.PI * 2);
+                        ctx.arc(o.x, o.y, hole, 0, Math.PI * 2);
                         ctx.fill();
+                        ctx.globalCompositeOperation = "source-over";
+                        rings.forEach((r) => {
+                            const p = Math.max(0, Math.min(1, (ms - r.d) / 1200));
+                            if (p <= 0 || p >= 1) return;
+                            const rad = outQuint(p) * max * 1.1;
+                            ctx.strokeStyle = r.c;
+                            ctx.globalAlpha = (1 - p) * 0.25; // soft glow: one wide faint stroke
+                            ctx.lineWidth = r.w * 8;
+                            ctx.beginPath();
+                            ctx.arc(o.x, o.y, rad, 0, Math.PI * 2);
+                            ctx.stroke();
+                            ctx.globalAlpha = 1 - p;
+                            ctx.lineWidth = r.w;
+                            ctx.stroke();
+                        });
+                        sparks.forEach((s) => {
+                            const p = Math.min(1, ms / s.dur);
+                            if (p >= 1) return;
+                            const dist = outQuint(p) * s.d;
+                            ctx.fillStyle = s.c;
+                            ctx.globalAlpha = 1 - p;
+                            ctx.beginPath();
+                            ctx.arc(o.x + Math.cos(s.a) * dist, o.y + Math.sin(s.a) * dist, s.sz * (1 - p * 0.7), 0, Math.PI * 2);
+                            ctx.fill();
+                        });
                     });
-                    [0, 140, 280].forEach((d, i) => {
-                        const ring = document.createElement("div");
-                        ring.style.cssText = `position:absolute;left:${o.x - 50}px;top:${o.y - 50}px;width:100px;height:100px;border-radius:50%;border:${3 - i}px solid ${i === 1 ? cssVar("--accent-2") : cssVar("--accent")};box-shadow:0 0 30px ${cssVar("--accent")}`;
-                        layer.appendChild(ring);
-                        ring.animate([{ transform: "scale(0)", opacity: 1 }, { transform: `scale(${(max * 2.2) / 100})`, opacity: 0 }], { duration: 1200, delay: d, easing: "cubic-bezier(.2,.7,.3,1)", fill: "both" });
-                    });
-                    const cols = fxColors();
-                    for (let i = 0; i < (LITE ? 24 : 46); i++) {
-                        const p = document.createElement("div");
-                        const sz = rand(3, 8),
-                            a = rand(0, Math.PI * 2),
-                            d = rand(120, 480);
-                        p.style.cssText = `position:absolute;left:${o.x}px;top:${o.y}px;width:${sz}px;height:${sz}px;border-radius:50%;background:${cols[i % cols.length]};box-shadow:0 0 12px ${cols[i % cols.length]}`;
-                        layer.appendChild(p);
-                        p.animate([{ transform: "translate(-50%,-50%)", opacity: 1 }, { transform: `translate(${Math.cos(a) * d}px, ${Math.sin(a) * d}px) scale(.2)`, opacity: 0 }], { duration: rand(700, 1300), easing: "cubic-bezier(.1,.8,.3,1)", fill: "both" });
-                    }
                     enterApp(150, { transform: "scale(.92)", opacity: 0.4 });
                     done(1450);
                 },
